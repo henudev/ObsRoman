@@ -202,10 +202,13 @@ public class OpenObserveClient {
 
     private StorageException mapHttpError(String action, RestClientResponseException e) {
         int status = e.getStatusCode().value();
-        // 仅网络异常/408/429/5xx 可重试；400/401/403/404/413 等不重试
-        boolean retryable = status == 408 || status == 429 || status >= 500;
+        String body = e.getResponseBodyAsString() == null ? "" : e.getResponseBodyAsString();
+        // 仅网络异常/408/429/5xx 可重试；400/401/403/413 不重试。
+        // 例外：流正在被删除是运维操作引发的瞬时态（OO 异步删流窗口），重试后可写入新流
+        boolean transientStreamDelete = body.contains("is being deleted");
+        boolean retryable = status == 408 || status == 429 || status >= 500 || transientStreamDelete;
         return new StorageException(ErrorCode.STORAGE_ERROR,
-                "openobserve " + action + " http " + status + ": " + e.getResponseBodyAsString(),
+                "openobserve " + action + " http " + status + ": " + body,
                 e, retryable);
     }
 

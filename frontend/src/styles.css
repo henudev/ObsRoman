@@ -111,6 +111,25 @@ body {
 
 .page-title { font-size: 18px; font-weight: 600; margin: 0 0 16px; color: var(--text-strong); }
 
+.page-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.page-header .page-title { margin: 0; }
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--primary-deep);
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.back-btn:hover { border-color: var(--primary); background: var(--primary-soft); }
+
 .card {
   background: var(--panel);
   border: 1px solid var(--border);

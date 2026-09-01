@@ -1,10 +1,13 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onActivated, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { apiExport, apiRequest, downloadBlob } from '../api'
 import { fmtNumber } from '../charts'
 import { fmtBj, minutesAgoBjIso } from '../bjtime'
 import DateTimePicker from '../components/DateTimePicker.vue'
+
+// 单根组件（keep-alive 要求）；显式命名供 <keep-alive include> 匹配
+defineOptions({ name: 'SearchView' })
 
 const route = useRoute()
 const router = useRouter()
@@ -154,10 +157,32 @@ function toggle(list, value) {
   else list.push(value)
 }
 
-onMounted(() => search(1))
+/** 应用路由 query 携带的过滤条件（Dashboard 跳转 / 直达链接）；返回是否有条件被应用 */
+function applyRouteQuery() {
+  const query = route.query
+  let applied = false
+  if (query.trace_id) { form.traceId = String(query.trace_id); applied = true }
+  if (query.start) { form.startTime = String(query.start); activeQuick.value = null; applied = true }
+  if (query.end) { form.endTime = String(query.end); applied = true }
+  if (query.levels) { form.levels = String(query.levels).split(',').filter(Boolean); applied = true }
+  if (query.service) { form.service = String(query.service); applied = true }
+  if (query.environment) { form.environment = String(query.environment).split(',').filter(Boolean); applied = true }
+  return applied
+}
+
+// 组件被 keep-alive 缓存：初次进入与再次激活（如从 Trace 页返回）都会触发
+// - 路由携带过滤条件（Dashboard 跳转 / 直达链接）→ 应用并搜索
+// - 无条件返回 → 保留上次的筛选与结果状态
+onActivated(() => {
+  const applied = applyRouteQuery()
+  if (applied || !result.value) {
+    search(1)
+  }
+})
 </script>
 
 <template>
+  <div class="search-page">
   <h1 class="page-title">日志搜索</h1>
 
   <div v-if="errorText" class="error-banner">{{ errorText }}</div>
@@ -310,5 +335,6 @@ onMounted(() => search(1))
       <span class="muted">{{ result.page }} / {{ totalPages() }}</span>
       <button class="ghost" :disabled="result.page >= totalPages()" @click="search(result.page + 1)">下一页</button>
     </div>
+  </div>
   </div>
 </template>

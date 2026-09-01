@@ -194,6 +194,13 @@ public class OpenObserveLogStorage implements LogStorage {
                 || message.contains("no similar field");
     }
 
+    /** 流不存在（如被删除后未重建）：查询返回空结果而非 502 */
+    private static boolean isStreamMissingError(StorageException e) {
+        String message = String.valueOf(e.getMessage()).toLowerCase(java.util.Locale.ROOT);
+        return message.contains("stream not found") || message.contains("no such stream")
+                || message.contains("stream does not exist");
+    }
+
     /** 空响应（hits=[]），用于"条件不可能命中"时的统一降级 */
     private JsonNode emptyResponse() {
         ObjectNode response = mapper.createObjectNode();
@@ -215,6 +222,11 @@ public class OpenObserveLogStorage implements LogStorage {
         try {
             return client.search(startMicros, endMicros, sql, from, size);
         } catch (StorageException e) {
+            if (isStreamMissingError(e)) {
+                // 流被删除（如清空测试数据）：视为空结果并失效 Schema 缓存，下次写入会自动重建流
+                invalidateFields();
+                return emptyResponse();
+            }
             if (!isUnknownFieldError(e)) {
                 throw e;
             }

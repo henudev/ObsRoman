@@ -1,5 +1,6 @@
 <script setup>
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { apiRequest } from '../api'
 import { fmtNumber } from '../charts'
 import { fmtBj } from '../bjtime'
@@ -8,9 +9,19 @@ const props = defineProps({
   traceId: { type: String, required: true }
 })
 
+const router = useRouter()
 const trace = ref(null)
 const loading = ref(false)
 const errorText = ref('')
+
+/** 返回来源页：有历史则回退（搜索页状态由 keep-alive 保留），直达时回搜索页 */
+function goBack() {
+  if (window.history.state && window.history.state.back != null) {
+    router.back()
+  } else {
+    router.push({ path: '/search', query: { trace_id: props.traceId } })
+  }
+}
 
 async function load() {
   loading.value = true
@@ -41,7 +52,10 @@ onMounted(load)
 </script>
 
 <template>
-  <h1 class="page-title">Trace 链路</h1>
+  <div class="page-header">
+    <button class="back-btn" @click="goBack">← 返回</button>
+    <h1 class="page-title" style="margin: 0">Trace 链路</h1>
+  </div>
 
   <div v-if="errorText" class="error-banner">{{ errorText }}</div>
 

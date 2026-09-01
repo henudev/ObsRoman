@@ -35,7 +35,12 @@ const changelogHtml = computed(() => marked.parse(changelogRaw))
   </header>
 
   <main class="main">
-    <router-view />
+    <!-- 搜索页状态保留：从 Trace 页返回时筛选条件与结果不丢失 -->
+    <router-view v-slot="{ Component }">
+      <keep-alive include="SearchView">
+        <component :is="Component" />
+      </keep-alive>
+    </router-view>
   </main>
 
   <div v-if="showChangelog" class="modal-mask" @click.self="showChangelog = false">
