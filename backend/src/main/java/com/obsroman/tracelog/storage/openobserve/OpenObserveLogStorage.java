@@ -87,6 +87,14 @@ public class OpenObserveLogStorage implements LogStorage {
                 }
                 return;
             } catch (StorageException e) {
+                // 运维删流（如清空数据）的瞬时窗口：OO 异步删除期间 ingest 返回 400 "being deleted"，
+                // 用更长窗口（每 2s 一次、最长 30s）等待删除完成，避免清数据期间丢日志
+                if (isStreamBeingDeletedError(e) && attempt < 15) {
+                    log.warn("openobserve stream is being deleted, waiting before retry (attempt {})", attempt + 1);
+                    sleep(2000);
+                    attempt++;
+                    continue;
+                }
                 if (!e.isRetryable() || attempt >= retryProps.getRetry().getMaxAttempts()) {
                     throw e;
                 }
@@ -97,6 +105,10 @@ public class OpenObserveLogStorage implements LogStorage {
                 attempt++;
             }
         }
+    }
+
+    private static boolean isStreamBeingDeletedError(StorageException e) {
+        return String.valueOf(e.getMessage()).contains("is being deleted");
     }
 
     private long backoffMs(int attempt) {
@@ -230,14 +242,31 @@ public class OpenObserveLogStorage implements LogStorage {
             if (!isUnknownFieldError(e)) {
                 throw e;
             }
+            // Schema 演进中（如删流后重建）：刷新 Schema 并重建 SQL 重试一次
             invalidateFields();
             String rebuilt = sqlFn.apply(fieldPredicate());
             if (rebuilt == null) {
                 return emptyResponse();
             }
-            log.debug("retrying openobserve query after schema refresh");
-            return client.search(startMicros, endMicros, rebuilt, from, size);
+            try {
+                log.debug("retrying openobserve query after schema refresh");
+                return client.search(startMicros, endMicros, rebuilt, from, size);
+            } catch (StorageException retryError) {
+                // Schema 仍在演进（部分字段暂不可用）：返回空结果，下一次查询会自愈
+                if (isUnknownFieldError(retryError) || isStreamMissingError(retryError)) {
+                    log.warn("openobserve schema still in flux, returning empty result once: {}",
+                            snippet(retryError.getMessage()));
+                    return emptyResponse();
+                }
+                throw retryError;
+            }
         }
+    }
+
+    private static String snippet(String message) {
+        return String.valueOf(message).length() > 200
+                ? String.valueOf(message).substring(0, 200)
+                : String.valueOf(message);
     }
 
     // ---------- 查询 ----------

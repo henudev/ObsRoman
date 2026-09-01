@@ -69,6 +69,14 @@ openobserve:
 2. 为后端配置独立的 API Key 集合（`TRACE_LOG_SECURITY_API_KEYS_N_*` 环境变量）；
 3. 如需暴露 OpenObserve UI，仅限内网运维访问。
 
+## 清空日志数据
+
+**推荐：`./scripts/clear-data.sh`**（整卷清理，约 40 秒，得到干净的空系统）。
+
+注意：OpenObserve 的 `DELETE /api/{org}/streams/{stream}` 是**异步**操作——"being deleted"
+状态可能持续数分钟，期间该流名的写入会被拒绝（服务端已做最长 30 秒的等待重试）、查询返回空结果。
+因此不要用删流 API 做常规清数据，也不要在删流后立即大量写入。
+
 ## 常用运维命令
 
 ```bash
