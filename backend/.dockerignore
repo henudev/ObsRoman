@@ -1,0 +1,4 @@
+# backend 构建上下文（docker-compose: build: ./backend）
+target/
+*.log
+.DS_Store

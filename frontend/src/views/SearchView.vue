@@ -1,0 +1,314 @@
+<script setup>
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { apiExport, apiRequest, downloadBlob } from '../api'
+import { fmtNumber } from '../charts'
+import { fmtBj, minutesAgoBjIso } from '../bjtime'
+import DateTimePicker from '../components/DateTimePicker.vue'
+
+const route = useRoute()
+const router = useRouter()
+
+const LEVELS = ['TRACE', 'DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL']
+const ENVIRONMENTS = ['local', 'dev', 'test', 'staging', 'prod']
+
+const QUICK_RANGES = [
+  { label: '15 分钟', minutes: 15 },
+  { label: '1 小时', minutes: 60 },
+  { label: '6 小时', minutes: 360 },
+  { label: '24 小时', minutes: 1440 }
+]
+
+const form = reactive({
+  startTime: minutesAgoBjIso(60),
+  endTime: '',
+  service: '',
+  environment: [],
+  levels: [],
+  type: '',
+  traceId: route.query.trace_id || '',
+  requestId: '',
+  userId: '',
+  keyword: '',
+  page: 1,
+  size: 50
+})
+
+const showAdvanced = ref(true)
+const activeQuick = ref(60)
+
+const result = ref(null)
+const loading = ref(false)
+const errorText = ref('')
+const exporting = ref('')
+const toast = ref('')
+let toastTimer = null
+
+function showToast(text, warn) {
+  toast.value = text
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => (toast.value = ''), 4200)
+}
+
+/** 已生效的高级筛选数量（收起时在开关上提示） */
+const advancedActiveCount = computed(() => {
+  let count = 0
+  if (form.levels.length) count++
+  if (form.environment.length) count++
+  if (form.service) count++
+  if (form.type) count++
+  if (form.traceId) count++
+  if (form.requestId) count++
+  if (form.userId) count++
+  return count
+})
+
+function applyQuickRange(minutes) {
+  activeQuick.value = minutes
+  form.startTime = minutesAgoBjIso(minutes)
+  form.endTime = ''
+}
+
+function onCustomTime() {
+  activeQuick.value = null
+}
+
+function resetFilters() {
+  form.startTime = minutesAgoBjIso(60)
+  form.endTime = ''
+  form.service = ''
+  form.environment = []
+  form.levels = []
+  form.type = ''
+  form.traceId = ''
+  form.requestId = ''
+  form.userId = ''
+  form.keyword = ''
+  form.page = 1
+  activeQuick.value = 60
+  search(1)
+}
+
+async function search(page) {
+  form.page = page || 1
+  loading.value = true
+  errorText.value = ''
+  try {
+    result.value = await apiRequest('POST', '/api/v1/logs/search', payload())
+  } catch (e) {
+    errorText.value = `${e.message}（code=${e.code}）`
+    result.value = null
+  } finally {
+    loading.value = false
+  }
+}
+
+function payload() {
+  return {
+    start_time: form.startTime,
+    end_time: form.endTime || undefined,
+    service: form.service ? [form.service.trim()] : null,
+    environment: form.environment.length ? form.environment : null,
+    level: form.levels.length ? form.levels : null,
+    type: form.type ? [form.type.trim()] : null,
+    trace_id: form.traceId || null,
+    request_id: form.requestId || null,
+    user_id: form.userId || null,
+    keyword: form.keyword || null,
+    page: form.page,
+    size: form.size
+  }
+}
+
+async function doExport(format) {
+  exporting.value = format
+  errorText.value = ''
+  try {
+    const { blob, rows } = await apiExport(payload(), format)
+    const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)
+    downloadBlob(blob, `logs-${stamp}.${format}`)
+    if (rows === 0) {
+      showToast('导出完成：当前条件没有命中任何日志（文件仅含表头）。请扩大时间范围或减少过滤条件。', true)
+    } else {
+      showToast(`导出完成：共 ${fmtNumber(rows)} 条日志已下载（${format.toUpperCase()}）。`)
+    }
+  } catch (e) {
+    errorText.value = `导出失败：${e.message}（code=${e.code}）`
+  } finally {
+    exporting.value = ''
+  }
+}
+
+function goTrace(log) {
+  router.push({ path: `/trace/${log.trace_id}` })
+}
+
+function totalPages() {
+  if (!result.value) return 1
+  return Math.max(1, Math.ceil(result.value.total / result.value.size))
+}
+
+function toggle(list, value) {
+  const index = list.indexOf(value)
+  if (index >= 0) list.splice(index, 1)
+  else list.push(value)
+}
+
+onMounted(() => search(1))
+</script>
+
+<template>
+  <h1 class="page-title">日志搜索</h1>
+
+  <div v-if="errorText" class="error-banner">{{ errorText }}</div>
+  <div v-if="toast" class="toast" :class="{ warn: toast.startsWith('导出完成：当前') }">{{ toast }}</div>
+
+  <div class="card">
+    <!-- 时间范围 -->
+    <div class="filter-section">
+      <div class="filter-title">时间范围 <span class="muted" style="font-weight:400;letter-spacing:0">北京时间 · 默认最近 1 小时</span></div>
+      <div class="filter-row">
+        <div class="segmented">
+          <button
+            v-for="range in QUICK_RANGES" :key="range.minutes" type="button"
+            :class="{ active: activeQuick === range.minutes }"
+            @click="applyQuickRange(range.minutes)"
+          >{{ range.label }}</button>
+        </div>
+        <DateTimePicker v-model="form.startTime" placeholder="开始时间" @update:model-value="onCustomTime" />
+        <span class="muted">至</span>
+        <DateTimePicker v-model="form.endTime" placeholder="现在" @update:model-value="onCustomTime" />
+        <span class="spacer" style="flex:1"></span>
+        <button type="button" class="filter-toggle" @click="showAdvanced = !showAdvanced">
+          {{ showAdvanced ? '收起筛选 ▲' : '更多筛选 ▼' }}
+          <span v-if="!showAdvanced && advancedActiveCount" class="badge">{{ advancedActiveCount }}</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="filter-divider"></div>
+
+    <!-- 高级筛选：等级 / 环境 -->
+    <div v-show="showAdvanced" class="filter-section">
+      <div class="filter-grid">
+        <div class="filter-cell">
+          <label>日志等级（可多选）</label>
+          <div class="chips">
+            <button
+              v-for="lv in LEVELS" :key="lv" type="button"
+              class="chip" :class="{ active: form.levels.includes(lv) }"
+              @click="toggle(form.levels, lv)"
+            >{{ lv }}</button>
+          </div>
+        </div>
+        <div class="filter-cell">
+          <label>Environment（可多选）</label>
+          <div class="chips">
+            <button
+              v-for="env in ENVIRONMENTS" :key="env" type="button"
+              class="chip" :class="{ active: form.environment.includes(env) }"
+              @click="toggle(form.environment, env)"
+            >{{ env }}</button>
+          </div>
+        </div>
+        <div class="filter-cell">
+          <label>Type</label>
+          <input v-model="form.type" placeholder="application" @keyup.enter="search(1)" />
+        </div>
+      </div>
+    </div>
+
+    <!-- 高级筛选：精确匹配 -->
+    <div v-show="showAdvanced">
+      <div class="filter-divider"></div>
+      <div class="filter-section">
+        <div class="filter-title">精确匹配</div>
+        <div class="filter-grid">
+          <div class="filter-cell">
+            <label>Service</label>
+            <input v-model="form.service" placeholder="order-service" @keyup.enter="search(1)" />
+          </div>
+          <div class="filter-cell">
+            <label>trace_id</label>
+            <input v-model="form.traceId" class="mono" placeholder="32 位十六进制" @keyup.enter="search(1)" />
+          </div>
+          <div class="filter-cell">
+            <label>request_id / user_id</label>
+            <div style="display:flex; gap:8px">
+              <input v-model="form.requestId" placeholder="req_001" @keyup.enter="search(1)" />
+              <input v-model="form.userId" placeholder="10001" @keyup.enter="search(1)" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 关键词（高频条件，始终可见） -->
+    <div class="filter-divider"></div>
+    <div class="filter-section" style="padding-bottom:0">
+      <div class="filter-title">关键词 <span class="optional">匹配 message / event / attributes，大小写不敏感</span></div>
+      <input
+        v-model="form.keyword" placeholder="如：timeout、订单号、异常关键字…"
+        style="width:100%" @keyup.enter="search(1)"
+      />
+    </div>
+
+    <!-- 操作区 -->
+    <div class="filter-actions">
+      <button class="ghost" @click="resetFilters">重置</button>
+      <span class="muted" style="font-size:12px">每页</span>
+      <select v-model.number="form.size" style="width:auto">
+        <option :value="20">20</option>
+        <option :value="50">50</option>
+        <option :value="100">100</option>
+        <option :value="500">500</option>
+      </select>
+      <span class="spacer"></span>
+      <button class="ghost" :disabled="exporting !== ''" @click="doExport('csv')">
+        {{ exporting === 'csv' ? '导出中…' : '⬇ CSV' }}
+      </button>
+      <button class="ghost" :disabled="exporting !== ''" @click="doExport('jsonl')">
+        {{ exporting === 'jsonl' ? '导出中…' : '⬇ JSONL' }}
+      </button>
+      <button class="primary" :disabled="loading" @click="search(1)">{{ loading ? '搜索中…' : '搜索' }}</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div v-if="result" class="muted" style="margin-bottom: 10px">
+      命中 <b>{{ fmtNumber(result.total) }}</b> 条，第 {{ result.page }} / {{ totalPages() }} 页
+      <span v-if="form.startTime" style="margin-left: 12px">
+        范围：{{ fmtBj(form.startTime) }} ~ {{ form.endTime ? fmtBj(form.endTime) : '现在' }}（北京时间）
+      </span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>时间（北京）</th><th>等级</th><th>服务</th><th>事件</th><th>消息</th>
+          <th>Trace</th><th>耗时</th><th>Attributes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-if="result && !result.logs.length">
+          <td colspan="8" class="muted">没有符合条件的日志，请调整时间范围或过滤条件</td>
+        </tr>
+        <tr v-for="log in result?.logs || []" :key="log.timestamp + log.trace_id" class="clickable" @click="goTrace(log)">
+          <td class="mono">{{ fmtBj(log.timestamp) }}</td>
+          <td><span :class="'level-tag level-' + log.level">{{ log.level }}</span></td>
+          <td>{{ log.service }}</td>
+          <td class="mono">{{ log.event || '-' }}</td>
+          <td class="wrap">{{ log.message }}</td>
+          <td class="mono">{{ log.trace_id?.slice(0, 12) }}…</td>
+          <td>{{ log.duration_ms ?? '-' }}</td>
+          <td class="mono wrap">{{ log.attributes ? JSON.stringify(log.attributes) : '-' }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div v-if="result" class="pagination">
+      <button class="ghost" :disabled="result.page <= 1" @click="search(result.page - 1)">上一页</button>
+      <span class="muted">{{ result.page }} / {{ totalPages() }}</span>
+      <button class="ghost" :disabled="result.page >= totalPages()" @click="search(result.page + 1)">下一页</button>
+    </div>
+  </div>
+</template>

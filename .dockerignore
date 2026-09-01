@@ -1,0 +1,9 @@
+# 构建上下文体积控制（frontend/Dockerfile 与 backend/Dockerfile 共用仓库根上下文）
+.git
+.idea
+backend/target
+frontend/node_modules
+frontend/dist
+openobserve-data
+*.log
+.DS_Store

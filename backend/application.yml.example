@@ -1,0 +1,80 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: trace-log-service
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: always
+  mvc:
+    async:
+      request-timeout: 300000
+
+trace-log:
+  buffer:
+    capacity: 10000
+    batch-size: 200
+    flush-interval-ms: 1000
+    worker-count: 2
+
+  # ---- 鉴权：API Key 列表（生产环境请用环境变量注入，不要写进配置文件） ----
+  # 环境变量方式（Spring 松散绑定）：
+  #   TRACE_LOG_SECURITY_API_KEYS_0_NAME=admin
+  #   TRACE_LOG_SECURITY_API_KEYS_0_KEY=<your-key>
+  #   TRACE_LOG_SECURITY_API_KEYS_0_PERMISSIONS=log:write,log:read,trace:read,dashboard:read,log:export
+  #   TRACE_LOG_SECURITY_API_KEYS_0_SERVICE=order-service      # 可选：写入 Key 绑定 service
+  #   TRACE_LOG_SECURITY_API_KEYS_0_ENVIRONMENT=prod           # 可选：写入 Key 绑定 environment
+  security:
+    enabled: true
+    api-keys:
+      - name: admin
+        key: ${TRACE_LOG_ADMIN_KEY:}
+        permissions: [log:write, log:read, trace:read, dashboard:read, log:export]
+      - name: writer
+        key: ${TRACE_LOG_WRITER_KEY:}
+        permissions: [log:write]
+      - name: reader
+        key: ${TRACE_LOG_READER_KEY:}
+        permissions: [log:read, trace:read, dashboard:read, log:export]
+
+  limits:
+    max-log-bytes: 65536            # 单条日志 64 KB
+    max-batch-bytes: 5242880        # 单批 5 MB
+    max-batch-records: 500          # 单批最大 500 条
+    search-default-size: 50
+    search-max-size: 500
+    search-default-range-minutes: 15
+    search-max-range-days: 7
+    dashboard-default-range-minutes: 60
+    dashboard-max-range-hours: 24
+    export-max-rows: 100000
+    export-max-range-hours: 24
+    export-page-size: 1000
+    trace-max-logs: 5000
+
+  storage:
+    openobserve:
+      base-url: ${OPENOBSERVE_URL:http://localhost:5080}
+      organization: ${OPENOBSERVE_ORG:default}
+      stream-name: ${OPENOBSERVE_STREAM:trace_logs}
+      username: ${OPENOBSERVE_USERNAME:}
+      password: ${OPENOBSERVE_PASSWORD:}
+      token: ""                     # 可选：改用 Bearer token（优先级高于 Basic）
+      connect-timeout-ms: 500
+      write-timeout-ms: 5000
+      query-timeout-ms: 10000
+      health-timeout-ms: 2000
+      retry:
+        max-attempts: 3
+        backoff-ms: [100, 500, 2000]
+
+  cors:
+    # 开发模式 Vite 前端跨域；生产经 nginx 反向代理同源，不需要
+    allowed-origins: ${TRACE_LOG_CORS_ORIGINS:http://localhost:5173}
+
+logging:
+  level:
+    root: INFO
+    com.obsroman.tracelog: INFO
