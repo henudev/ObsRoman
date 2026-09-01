@@ -502,6 +502,20 @@ thead tr:first-child th:last-child { border-radius: 0 8px 0 0; }
 
 td.wrap { word-break: break-all; }
 
+/* 数据表：固定布局 + 单行省略，保证每行高度一致 */
+.data-table { table-layout: fixed; }
+
+.data-table th,
+.data-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+  line-height: 1.5;
+}
+
+.data-table td.wrap { word-break: normal; }
+
 tr.clickable { cursor: pointer; }
 tr.clickable:hover td { background: var(--primary-soft); }
 

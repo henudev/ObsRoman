@@ -306,7 +306,17 @@ onActivated(() => {
         范围：{{ fmtBj(form.startTime) }} ~ {{ form.endTime ? fmtBj(form.endTime) : '现在' }}（北京时间）
       </span>
     </div>
-    <table>
+    <table class="data-table">
+      <colgroup>
+        <col style="width: 172px" />
+        <col style="width: 76px" />
+        <col style="width: 130px" />
+        <col style="width: 120px" />
+        <col />
+        <col style="width: 116px" />
+        <col style="width: 64px" />
+        <col style="width: 260px" />
+      </colgroup>
       <thead>
         <tr>
           <th>时间（北京）</th><th>等级</th><th>服务</th><th>事件</th><th>消息</th>
@@ -318,14 +328,16 @@ onActivated(() => {
           <td colspan="8" class="muted">没有符合条件的日志，请调整时间范围或过滤条件</td>
         </tr>
         <tr v-for="log in result?.logs || []" :key="log.timestamp + log.trace_id" class="clickable" @click="goTrace(log)">
-          <td class="mono">{{ fmtBj(log.timestamp) }}</td>
+          <td class="mono" :title="fmtBj(log.timestamp)">{{ fmtBj(log.timestamp) }}</td>
           <td><span :class="'level-tag level-' + log.level">{{ log.level }}</span></td>
-          <td>{{ log.service }}</td>
-          <td class="mono">{{ log.event || '-' }}</td>
-          <td class="wrap">{{ log.message }}</td>
-          <td class="mono">{{ log.trace_id?.slice(0, 12) }}…</td>
-          <td>{{ log.duration_ms ?? '-' }}</td>
-          <td class="mono wrap">{{ log.attributes ? JSON.stringify(log.attributes) : '-' }}</td>
+          <td :title="log.service">{{ log.service }}</td>
+          <td class="mono" :title="log.event || ''">{{ log.event || '-' }}</td>
+          <td :title="log.message">{{ log.message }}</td>
+          <td class="mono" :title="log.trace_id">{{ log.trace_id?.slice(0, 12) }}…</td>
+          <td :title="log.duration_ms != null ? log.duration_ms + ' ms' : ''">{{ log.duration_ms ?? '-' }}</td>
+          <td class="mono" :title="log.attributes ? JSON.stringify(log.attributes) : ''">
+            {{ log.attributes ? JSON.stringify(log.attributes) : '-' }}
+          </td>
         </tr>
       </tbody>
     </table>

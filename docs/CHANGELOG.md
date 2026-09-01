@@ -4,6 +4,13 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [v1.2.4] - 2026-09-01 18:05
+
+### 优化
+- 日志搜索列表与 Dashboard「最近 ERROR」表格改为固定行高：`table-layout: fixed` + 单行省略号，
+  Attributes / 消息等长内容不再把行撑高（实测长 Attributes 场景每行稳定 38px）
+- 超长内容悬停显示完整提示（title），点击行仍可进入 Trace 链路页查看全量信息
+
 ## [v1.2.3] - 2026-09-01 17:50
 
 ### 修复
