@@ -24,7 +24,7 @@ services:
     environment:
       OPENOBSERVE_URL: http://openobserve:5080
       OPENOBSERVE_ORG: default
-      OPENOBSERVE_STREAM: trace_logs
+      OPENOBSERVE_STREAM: trace_logs_v2
       OPENOBSERVE_USERNAME: ${OO_ROOT_USER_EMAIL:-root@example.com}
       OPENOBSERVE_PASSWORD: ${OO_ROOT_USER_PASSWORD:-Complexpass#123}
       # API Key（以下默认值仅供本地开发联调，生产必须覆盖）
