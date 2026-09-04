@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { apiRequest } from '../api'
 import { fmtNumber } from '../charts'
-import { fmtBj } from '../bjtime'
+import { fmtBj, fmtBjTimeMs } from '../bjtime'
 
 const props = defineProps({
   traceId: { type: String, required: true }
@@ -46,6 +46,15 @@ function offsetText(log) {
   const offset = offsetMs(log)
   if (offset === null) return ''
   return (offset >= 0 ? '+' : '-') + (Math.abs(offset) / 1000).toFixed(3) + 's'
+}
+
+/** attributes JSON 美化输出（多行缩进），异常时退化为原样字符串 */
+function prettyAttrs(attrs) {
+  try {
+    return JSON.stringify(attrs, null, 2)
+  } catch (e) {
+    return String(attrs)
+  }
 }
 
 onMounted(load)
@@ -93,15 +102,13 @@ onMounted(load)
     <div class="waterfall">
       <div v-for="(log, index) in trace?.logs || []" :key="index" class="waterfall-row">
         <span class="t">{{ offsetText(log) }}</span>
-        <span class="mono t">{{ log.timestamp?.replace('T', ' ').slice(11, 23) }}</span>
+        <span class="mono t">{{ fmtBjTimeMs(log.timestamp) }}</span>
         <span class="svc">{{ log.service }}</span>
         <span :class="'level-tag level-' + log.level">{{ log.level }}</span>
         <span class="msg">
           <span class="mono muted">{{ log.event || '' }}</span>
           {{ log.message }}
-          <span v-if="log.attributes" class="mono muted">
-            {{ JSON.stringify(log.attributes) }}
-          </span>
+          <pre v-if="log.attributes && Object.keys(log.attributes).length" class="attrs-mono">{{ prettyAttrs(log.attributes) }}</pre>
         </span>
         <span v-if="log.duration_ms != null" class="t">{{ log.duration_ms }}ms</span>
       </div>

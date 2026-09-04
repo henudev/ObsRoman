@@ -585,6 +585,21 @@ tr.clickable:hover td { background: var(--primary-soft); }
 .waterfall-row .svc { width: 150px; flex-shrink: 0; font-weight: 600; }
 .waterfall-row .msg { flex: 1; min-width: 0; word-break: break-all; }
 
+/* Trace 时间线：attributes JSON 美化展示（多行缩进、等宽、浅底色） */
+.attrs-mono {
+  margin: 6px 0 0 0;
+  padding: 8px 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--muted);
+}
+
 /* ===== 更新日志弹窗 ===== */
 .modal-mask {
   position: fixed;

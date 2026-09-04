@@ -60,6 +60,15 @@ export function fmtBjTime(value) {
   return `${pad(p.hh)}:${pad(p.mm)}:${pad(p.ss)}`
 }
 
+/** ISO/epoch → 北京短文本 "HH:mm:ss.SSS"（带毫秒，供时间线逐行展示） */
+export function fmtBjTimeMs(value) {
+  if (!value) return '-'
+  const d = value instanceof Date ? value : new Date(value)
+  if (isNaN(d.getTime())) return String(value)
+  const p = bjParts(d)
+  return `${pad(p.hh)}:${pad(p.mm)}:${pad(p.ss)}.${String(d.getUTCMilliseconds()).padStart(3, '0')}`
+}
+
 /** ISO 字符串 → 北京墙钟分量（供选择器回显）；空值返回当前时间分量的秒位清零 */
 export function isoToBjParts(iso) {
   if (!iso) {
