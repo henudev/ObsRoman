@@ -1,6 +1,6 @@
 # ObsRoman · Trace Log Service
 
-基于 **OpenObserve** 的通用链路日志服务（当前版本 **v1.1.0**，更新记录见 [docs/CHANGELOG.md](docs/CHANGELOG.md)，前端右上角「更新日志」同步展示）。业务系统与前端一律通过本服务读写日志，**禁止直接调用 OpenObserve API**。
+基于 **OpenObserve** 的通用链路日志服务（当前版本 **v1.2.4**，更新记录见 [docs/CHANGELOG.md](docs/CHANGELOG.md)，前端右上角「更新日志」同步展示）。业务系统与前端一律通过本服务读写日志，**禁止直接调用 OpenObserve API**。
 
 ```
 业务系统 / 前端
