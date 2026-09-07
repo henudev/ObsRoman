@@ -23,5 +23,7 @@ openobserve-data/
 
 # --- SDK 构建产物 ---
 sdk/java/target/
+sdk/python/build/
+sdk/python/*.egg-info/
 __pycache__/
 *.pyc
