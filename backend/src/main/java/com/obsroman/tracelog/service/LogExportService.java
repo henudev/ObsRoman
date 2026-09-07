@@ -10,7 +10,6 @@ import com.obsroman.tracelog.model.LogRecord;
 import com.obsroman.tracelog.model.LogSearchRequest;
 import com.obsroman.tracelog.storage.LogCursor;
 import com.obsroman.tracelog.storage.LogStorage;
-import com.obsroman.tracelog.storage.StorageException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -30,7 +29,7 @@ import java.util.Map;
  * 日志导出服务（P0：同步流式 CSV / JSONL）。
  * - 查询条件复用 LogQuery（与搜索完全一致）
  * - 流式处理：查询一批 → 写一批，禁止一次性加载全部数据进内存
- * - 限制：最大 24 小时 / 100,000 条，超出返回 EXPORT_LIMIT_EXCEEDED
+ * - 限制：仅保留最大 24 小时时间范围（数量不设上限）
  */
 @Service
 public class LogExportService {
@@ -72,17 +71,8 @@ public class LogExportService {
         LogSearchRequest search = toSearchRequest(request);
         LogQuery query = queryFactory.create(search, true);
 
-        long count;
-        try {
-            count = storage.count(query);
-        } catch (StorageException e) {
-            throw e;
-        }
-        if (count > limits.getExportMaxRows()) {
-            throw new ApiException(ErrorCode.EXPORT_LIMIT_EXCEEDED,
-                    "query matches " + count + " logs, exceeds export limit " + limits.getExportMaxRows()
-                            + "; narrow the time range or add filters");
-        }
+        // 数量不设上限（可由运维通过配置调整），仅用于回显 X-Export-Rows 导出行数
+        long count = storage.count(query);
         return new ExportPlan(query, format, count);
     }
 
@@ -98,10 +88,8 @@ public class LogExportService {
                 }
                 long written = 0;
                 try (LogCursor cursor = storage.searchForExport(plan.query())) {
-                    while (written < limits.getExportMaxRows()) {
-                        int remaining = (int) Math.min(limits.getExportPageSize(),
-                                limits.getExportMaxRows() - written);
-                        List<LogRecord> batch = cursor.nextBatch(remaining);
+                    while (true) {
+                        List<LogRecord> batch = cursor.nextBatch(limits.getExportPageSize());
                         if (batch.isEmpty()) {
                             break;
                         }

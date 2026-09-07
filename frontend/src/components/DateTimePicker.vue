@@ -13,6 +13,8 @@ const emit = defineEmits(['update:modelValue'])
 const open = ref(false)
 const wrap = ref(null)
 const view = reactive({ y: 2026, m: 1, d: 1, hh: 0, mm: 0 })
+// 日历中当前正在选择的日期（含月份），点击即高亮；翻到其他月时不会残留高亮
+const picked = reactive({ y: 0, m: 0, d: 0 })
 
 watch(open, (isOpen) => {
   if (isOpen) {
@@ -22,6 +24,9 @@ watch(open, (isOpen) => {
     view.d = parts.d
     view.hh = parts.hh
     view.mm = parts.mm
+    picked.y = parts.y
+    picked.m = parts.m
+    picked.d = parts.d
   }
 })
 
@@ -55,6 +60,9 @@ function nextMonth() {
 
 function pickDay(day) {
   view.d = day
+  picked.y = view.y
+  picked.m = view.m
+  picked.d = day
 }
 
 function isToday(day) {
@@ -63,9 +71,8 @@ function isToday(day) {
 }
 
 function isSelected(day) {
-  if (!props.modelValue) return false
-  const parts = isoToBjParts(props.modelValue)
-  return parts.y === view.y && parts.m === view.m && parts.d === day
+  // 高亮日历中当前正在选择的日期（picked），点击即反馈；翻月后仅高亮仍在当前月份的选中日
+  return picked.y === view.y && picked.m === view.m && picked.d === day
 }
 
 function pickNow() {

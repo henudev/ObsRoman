@@ -170,7 +170,6 @@ public class TraceLogProperties {
         private long searchMaxRangeDays = 7;
         private long dashboardDefaultRangeMinutes = 60;
         private long dashboardMaxRangeHours = 24;
-        private long exportMaxRows = 100000;
         private long exportMaxRangeHours = 24;
         private int exportPageSize = 1000;
         private int traceMaxLogs = 5000;
@@ -245,14 +244,6 @@ public class TraceLogProperties {
 
         public void setDashboardMaxRangeHours(long dashboardMaxRangeHours) {
             this.dashboardMaxRangeHours = dashboardMaxRangeHours;
-        }
-
-        public long getExportMaxRows() {
-            return exportMaxRows;
-        }
-
-        public void setExportMaxRows(long exportMaxRows) {
-            this.exportMaxRows = exportMaxRows;
         }
 
         public long getExportMaxRangeHours() {

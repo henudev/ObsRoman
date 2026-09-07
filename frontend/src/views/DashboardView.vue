@@ -4,21 +4,25 @@ import { useRouter } from 'vue-router'
 import { apiRequest } from '../api'
 import { LEVEL_COLORS, PALETTE, fmtNumber, useChart } from '../charts'
 import { fmtBj, minutesAgoBjIso, toBjIso } from '../bjtime'
+import DateTimePicker from '../components/DateTimePicker.vue'
 
 const router = useRouter()
 
-const RANGES = [
-  { label: '最近 15 分钟', minutes: 15 },
-  { label: '最近 1 小时', minutes: 60 },
-  { label: '最近 6 小时', minutes: 360 },
-  { label: '最近 24 小时', minutes: 1440 }
+// 与日志搜索保持一致的时间范围（快捷区间 + 自定义开始/结束）
+const QUICK_RANGES = [
+  { label: '15 分钟', minutes: 15 },
+  { label: '1 小时', minutes: 60 },
+  { label: '6 小时', minutes: 360 },
+  { label: '24 小时', minutes: 1440 }
 ]
 
 const filters = reactive({
-  rangeMinutes: 60,
+  startTime: minutesAgoBjIso(60),
+  endTime: '',
   environment: '',
   service: ''
 })
+const activeQuick = ref(60)
 
 const loading = ref(false)
 const errorText = ref('')
@@ -32,14 +36,31 @@ const trendChart = useChart()
 const levelChart = useChart()
 const rankChart = useChart()
 
-const rangeText = computed(() => RANGES.find((r) => r.minutes === filters.rangeMinutes)?.label || '')
+const rangeText = computed(() => {
+  const r = QUICK_RANGES.find((q) => q.minutes === activeQuick.value)
+  return r ? r.label : '自定义范围'
+})
 
 function windowStartIso() {
-  return minutesAgoBjIso(filters.rangeMinutes)
+  return filters.startTime
 }
 
 function windowEndIso() {
-  return toBjIso(new Date())
+  return filters.endTime || toBjIso(new Date())
+}
+
+/** 选择快捷区间：确定起始时间，结束默认「现在」（与搜索页一致） */
+function applyQuickRange(minutes) {
+  activeQuick.value = minutes
+  filters.startTime = minutesAgoBjIso(minutes)
+  filters.endTime = ''
+  refresh()
+}
+
+/** 自定义时间（点开日期选择器即退出快捷区间） */
+function onCustomTime() {
+  activeQuick.value = null
+  refresh()
 }
 
 function body() {
@@ -212,11 +233,20 @@ function onResize() {
 
   <div class="card">
     <div class="toolbar">
-      <div class="field">
+      <div class="field" style="min-width: 360px">
         <label>时间范围</label>
-        <select v-model.number="filters.rangeMinutes" @change="refresh">
-          <option v-for="r in RANGES" :key="r.minutes" :value="r.minutes">{{ r.label }}</option>
-        </select>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+          <div class="segmented">
+            <button
+              v-for="range in QUICK_RANGES" :key="range.minutes" type="button"
+              :class="{ active: activeQuick === range.minutes }"
+              @click="applyQuickRange(range.minutes)"
+            >{{ range.label }}</button>
+          </div>
+          <DateTimePicker v-model="filters.startTime" placeholder="开始时间" @update:model-value="onCustomTime" />
+          <span class="muted">至</span>
+          <DateTimePicker v-model="filters.endTime" placeholder="现在" @update:model-value="onCustomTime" />
+        </div>
       </div>
       <div class="field">
         <label>Environment</label>

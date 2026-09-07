@@ -91,17 +91,15 @@ class LogExportServiceTest {
     }
 
     @Test
-    void overLimitExportIsRejectedWithExportLimitExceeded() {
-        // 造 100001 条命中条件的日志（level=ERROR 与查询一致）
+    void overLimitExportIsAllowedNow() {
+        // 数量不再设上限：命中超过 100,000 条也能正常生成导出计划（不再抛 1303）
         storage.records.clear();
         long micros = OffsetDateTime.parse("2026-09-01T13:30:00+08:00").toInstant().toEpochMilli() * 1000;
         for (int i = 0; i < 100_001; i++) {
             storage.records.add(storage.record(TRACE, "s", "ERROR", micros + i));
         }
-        assertThatThrownBy(() -> plan("csv"))
-                .isInstanceOf(ApiException.class)
-                .extracting(e -> ((ApiException) e).getErrorCode().code())
-                .isEqualTo(1303);
+        LogExportService.ExportPlan exportPlan = plan("csv");
+        assertThat(exportPlan.totalRows()).isEqualTo(100_001);
     }
 
     @Test
