@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: trace-log-sdk
+Version: 1.2.0
+Summary: Zero-dependency Python SDK for Trace Log Service (async batching, retry, W3C Trace Context)
+Author: ObsRoman
+License: MIT
+Keywords: logging,tracing,openobserve
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown

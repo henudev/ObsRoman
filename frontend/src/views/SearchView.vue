@@ -175,6 +175,11 @@ function applyRouteQuery() {
 // - 无条件返回 → 保留上次的筛选与结果状态
 onActivated(() => {
   const applied = applyRouteQuery()
+  // 直接点「日志搜索」进入（URL 未带 levels，如从 Trace 页返回）时，重置日志等级为不选，
+  // 避免 keep-alive 保留上次选中的等级；Dashboard 跳转携带的 levels 仍会生效
+  if (!route.query.levels) {
+    form.levels = []
+  }
   if (applied || !result.value) {
     search(1)
   }
