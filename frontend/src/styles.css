@@ -327,6 +327,13 @@ button.ghost:disabled { opacity: 0.6; cursor: default; }
 .filter-cell input, .filter-cell select { width: 100%; }
 .filter-cell.span-2 { grid-column: span 2; }
 
+/* 搜索 / Dashboard 左侧筛选列：每个条件独立一块，单列纵向排列 */
+.search-filters .filter-grid,
+.dashboard-filters .filter-grid { grid-template-columns: 1fr; }
+
+/* 导出按钮组（CSV / JSONL 一行） */
+.export-group { display: flex; align-items: center; gap: 6px; }
+
 .filter-divider { border-top: 1px dashed var(--border); margin: 2px 0 12px; }
 
 /* 分段选择器（快捷区间） */

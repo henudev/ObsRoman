@@ -5,8 +5,8 @@ package com.obsroman.tracelog.common;
  */
 public final class AppVersion {
 
-    public static final String VERSION = "1.3.3";
-    public static final String RELEASE_DATE = "2026-09-08 13:49";
+    public static final String VERSION = "1.3.4";
+    public static final String RELEASE_DATE = "2026-09-08 14:43";
 
     private AppVersion() {
     }

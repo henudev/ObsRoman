@@ -74,10 +74,14 @@ function applyQuickRange(minutes) {
   activeQuick.value = minutes
   form.startTime = minutesAgoBjIso(minutes)
   form.endTime = ''
+  // 选择非输入条件（快捷区间）后直接触发搜索
+  search(1)
 }
 
 function onCustomTime() {
   activeQuick.value = null
+  // 选择自定义时间后直接触发搜索
+  search(1)
 }
 
 function resetFilters() {
@@ -163,6 +167,12 @@ function toggle(list, value) {
   else list.push(value)
 }
 
+/** 选择非输入条件（等级 / 环境等 chips）后直接触发搜索 */
+function toggleAndSearch(list, value) {
+  toggle(list, value)
+  search(1)
+}
+
 /** 应用路由 query 携带的过滤条件（Dashboard 跳转 / 直达链接）；返回是否有条件被应用 */
 function applyRouteQuery() {
   const query = route.query
@@ -231,22 +241,22 @@ onActivated(() => {
     <div v-show="showAdvanced" class="filter-section">
       <div class="filter-grid">
         <div class="filter-cell">
-          <label>日志等级（可多选）</label>
+          <label>日志等级（可多选，点击即筛选）</label>
           <div class="chips">
             <button
               v-for="lv in LEVELS" :key="lv" type="button"
               class="chip" :class="{ active: form.levels.includes(lv) }"
-              @click="toggle(form.levels, lv)"
+              @click="toggleAndSearch(form.levels, lv)"
             >{{ lv }}</button>
           </div>
         </div>
         <div class="filter-cell">
-          <label>Environment（可多选）</label>
+          <label>Environment（可多选，点击即筛选）</label>
           <div class="chips">
             <button
               v-for="env in ENVIRONMENTS" :key="env" type="button"
               class="chip" :class="{ active: form.environment.includes(env) }"
-              @click="toggle(form.environment, env)"
+              @click="toggleAndSearch(form.environment, env)"
             >{{ env }}</button>
           </div>
         </div>
@@ -286,14 +296,16 @@ onActivated(() => {
       </div>
     </div>
 
-    <!-- 关键词（高频条件，始终可见） -->
+    <!-- 关键词（高频条件） -->
     <div class="filter-divider"></div>
     <div class="filter-section" style="padding-bottom:0">
-      <div class="filter-title">关键词 <span class="optional">匹配 message / event / attributes，大小写不敏感</span></div>
-      <input
-        v-model="form.keyword" placeholder="如：timeout、订单号、异常关键字…"
-        style="width:100%" @keyup.enter="search(1)"
-      />
+      <div class="filter-cell">
+        <label>关键词 <span class="optional">匹配 message / event / attributes，大小写不敏感</span></label>
+        <input
+          v-model="form.keyword" placeholder="如：timeout、订单号、异常关键字…"
+          @keyup.enter="search(1)"
+        />
+      </div>
     </div>
 
     <!-- 操作区 -->
@@ -307,12 +319,15 @@ onActivated(() => {
         <option :value="500">500</option>
       </select>
       <span class="spacer"></span>
-      <button class="ghost" :disabled="exporting !== ''" @click="doExport('csv')">
-        {{ exporting === 'csv' ? '导出中…' : '⬇ CSV' }}
-      </button>
-      <button class="ghost" :disabled="exporting !== ''" @click="doExport('jsonl')">
-        {{ exporting === 'jsonl' ? '导出中…' : '⬇ JSONL' }}
-      </button>
+      <div class="export-group">
+        <span class="muted" style="font-size:12px">导出</span>
+        <button class="ghost" :disabled="exporting !== ''" @click="doExport('csv')">
+          {{ exporting === 'csv' ? '导出中…' : '⬇ CSV' }}
+        </button>
+        <button class="ghost" :disabled="exporting !== ''" @click="doExport('jsonl')">
+          {{ exporting === 'jsonl' ? '导出中…' : '⬇ JSONL' }}
+        </button>
+      </div>
       <button class="primary" :disabled="loading" @click="search(1)">{{ loading ? '搜索中…' : '搜索' }}</button>
     </div>
   </aside>
