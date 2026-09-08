@@ -45,14 +45,14 @@ class LogQueryFactoryTest {
     }
 
     @Test
-    void rejectsRangeOver7Days() {
+    void searchAllowsRangeBeyond7Days() {
         LogSearchRequest request = new LogSearchRequest();
         request.setStartTime("2026-08-01T00:00:00+08:00");
-        request.setEndTime("2026-09-01T00:00:00+08:00");
-        assertThatThrownBy(() -> factory.create(request, false))
-                .isInstanceOf(ApiException.class)
-                .extracting(e -> ((ApiException) e).getErrorCode().code())
-                .isEqualTo(1301);
+        request.setEndTime("2026-09-01T00:00:00+08:00"); // 31 天，搜索不再受限
+        LogQuery query = factory.create(request, false);
+        assertThat(query.getStartTimeMicros()).isLessThan(query.getEndTimeMicros());
+        assertThat(query.getEndTimeMicros() - query.getStartTimeMicros())
+                .isGreaterThan(30L * 24 * 3600 * 1_000_000L);
     }
 
     @Test

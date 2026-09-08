@@ -1,6 +1,6 @@
 # ObsRoman · Trace Log Service
 
-基于 **OpenObserve** 的通用链路日志服务（当前版本 **v1.3.0**，更新记录见 [docs/CHANGELOG.md](docs/CHANGELOG.md)，前端右上角「更新日志」同步展示）。业务系统与前端一律通过本服务读写日志，**禁止直接调用 OpenObserve API**。
+基于 **OpenObserve** 的通用链路日志服务（当前版本 **v1.3.1**，更新记录见 [docs/CHANGELOG.md](docs/CHANGELOG.md)，前端右上角「更新日志」同步展示）。业务系统与前端一律通过本服务读写日志，**禁止直接调用 OpenObserve API**。
 
 ```
 业务系统 / 前端
@@ -24,7 +24,7 @@ Dashboard（Vue 3 + ECharts）/ 日志导出（流式 CSV / JSONL）
 | 单条 / 批量写入 | `POST /api/v1/logs`、`POST /api/v1/logs/batch`（≤500 条、≤5MB，支持部分成功） |
 | 异步写入 | 内存队列 + 后台 Worker，达到 200 条或 1 秒即批量写入；队列满 DROP 并计数 |
 | trace_id 链路关联 | 兼容 W3C Trace Context（`traceparent`）；`GET /api/v1/traces/{traceId}` 返回按时间升序的完整链路 |
-| 日志搜索 | 时间范围 / service / environment / level / type / trace_id / request_id / user_id / 关键词，最多回看 7 天 |
+| 日志搜索 | 时间范围 / service / environment / level / type / trace_id / request_id / user_id / 关键词，时间范围不设上限 |
 | Dashboard | Overview 单页：总量 / ERROR / 错误率 / Trace 数 / 活跃服务 / 耗时 P95·P99 + 日志趋势、等级分布、服务 Top、最近 ERROR |
 | 日志导出 | 复用搜索条件的流式导出 CSV / JSONL（时间范围 ≤24 小时，数量不设上限） |
 | AK/SK 鉴权 | `Authorization: Bearer <ak>:<sk>`（兼容旧单 key）；**统一管理员权限**（所有 Key 可读可写，不再细分）；系统内置默认管理员 Key（`admin:admin`，可用环境变量覆盖）；管理页 `/keys` 可创建/启停/删除 Key，日志自动打 `api_key_ak` 以便按接入应用区分 |

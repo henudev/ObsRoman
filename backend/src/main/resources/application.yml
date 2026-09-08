@@ -41,7 +41,6 @@ trace-log:
     search-default-size: 50
     search-max-size: 500
     search-default-range-minutes: 15
-    search-max-range-days: 7
     dashboard-default-range-minutes: 10080
     export-max-range-hours: 24
     export-page-size: 1000

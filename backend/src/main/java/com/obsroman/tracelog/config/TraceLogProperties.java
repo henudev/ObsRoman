@@ -138,7 +138,6 @@ public class TraceLogProperties {
         private int searchDefaultSize = 50;
         private int searchMaxSize = 500;
         private long searchDefaultRangeMinutes = 15;
-        private long searchMaxRangeDays = 7;
         private long dashboardDefaultRangeMinutes = 10080; // 最近 7 天
         private long exportMaxRangeHours = 24;
         private int exportPageSize = 1000;
@@ -190,14 +189,6 @@ public class TraceLogProperties {
 
         public void setSearchDefaultRangeMinutes(long searchDefaultRangeMinutes) {
             this.searchDefaultRangeMinutes = searchDefaultRangeMinutes;
-        }
-
-        public long getSearchMaxRangeDays() {
-            return searchMaxRangeDays;
-        }
-
-        public void setSearchMaxRangeDays(long searchMaxRangeDays) {
-            this.searchMaxRangeDays = searchMaxRangeDays;
         }
 
         public long getDashboardDefaultRangeMinutes() {

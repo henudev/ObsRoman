@@ -41,15 +41,15 @@ public class LogQueryFactory {
         if (!start.isBefore(end)) {
             throw new ApiException(ErrorCode.INVALID_REQUEST, "start_time must be before end_time");
         }
-        long rangeMs = end.toInstant().toEpochMilli() - start.toInstant().toEpochMilli();
-        long maxRangeMs = forExport
-                ? limits.getExportMaxRangeHours() * 3600_000L
-                : limits.getSearchMaxRangeDays() * 24L * 3600_000L;
-        if (rangeMs > maxRangeMs) {
-            ErrorCode rangeError = forExport ? ErrorCode.EXPORT_LIMIT_EXCEEDED : ErrorCode.SEARCH_RANGE_EXCEEDED;
-            throw new ApiException(rangeError,
-                    (forExport ? "export" : "search") + " range " + (rangeMs / 3600_000L)
-                            + "h exceeds limit " + (maxRangeMs / 3600_000L) + " hours");
+        // 搜索不再设时间范围上限（以默认筛选为准）；导出仍保留 24 小时时间范围限制
+        if (forExport) {
+            long rangeMs = end.toInstant().toEpochMilli() - start.toInstant().toEpochMilli();
+            long maxRangeMs = limits.getExportMaxRangeHours() * 3600_000L;
+            if (rangeMs > maxRangeMs) {
+                throw new ApiException(ErrorCode.EXPORT_LIMIT_EXCEEDED,
+                        "export range " + (rangeMs / 3600_000L) + "h exceeds limit "
+                                + (maxRangeMs / 3600_000L) + " hours");
+            }
         }
 
         LogQuery query = new LogQuery();

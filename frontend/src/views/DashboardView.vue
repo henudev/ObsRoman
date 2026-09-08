@@ -43,6 +43,23 @@ const rangeText = computed(() => {
   return r ? r.label : '自定义范围'
 })
 
+// 统一 KPI 指标渲染（主指标 4 + 次指标 5），保证每张卡片结构/对齐一致
+const kpis = computed(() => {
+  const o = overview.value
+  const ms = (v) => ({ value: v ?? '-', unit: v != null ? 'ms' : '' })
+  return [
+    { label: '日志总量', value: fmtNumber(o?.total_logs), unit: '', accent: 'total', primary: true, tone: '', click: gotoTotalKpi },
+    { label: 'ERROR 数量', value: fmtNumber(o?.error_logs), unit: '', accent: 'error', primary: true, tone: 'error', click: gotoErrorSearch },
+    { label: '错误率', value: o ? (o.error_rate * 100).toFixed(2) : '-', unit: '%', accent: 'rate', primary: true, tone: 'error', click: gotoErrorRateKpi },
+    { label: 'Trace 数量', value: fmtNumber(o?.trace_count), unit: '', accent: 'trace', primary: true, tone: '', click: gotoTraceKpi },
+    { label: 'WARN 数量', value: fmtNumber(o?.warn_logs), unit: '', accent: 'warn', tone: 'warn' },
+    { label: '活跃服务', value: fmtNumber(o?.active_services), unit: '', accent: 'services', tone: '' },
+    { label: '平均耗时', ...ms(o?.avg_duration_ms), accent: 'duration', tone: '' },
+    { label: 'P95 耗时', ...ms(o?.p95_duration_ms), accent: 'p95', tone: '' },
+    { label: 'P99 耗时', ...ms(o?.p99_duration_ms), accent: 'p99', tone: '' }
+  ]
+})
+
 function windowStartIso() {
   return filters.startTime
 }
@@ -122,12 +139,17 @@ function renderCharts() {
   }, onTrendClick)
 
   levelChart.mount(document.getElementById('level-chart'), {
-    tooltip: { trigger: 'item' },
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+    // 圆环靠左、图例靠右，填满卡片宽度，避免大量空白
+    legend: { orient: 'vertical', right: 8, top: 'middle', type: 'scroll', itemWidth: 10, itemHeight: 10, textStyle: { fontSize: 12 } },
     series: [{
       name: '日志等级',
       type: 'pie',
       radius: ['45%', '72%'],
-      label: { formatter: '{b}: {c}' },
+      center: ['40%', '50%'],
+      avoidLabelOverlap: true,
+      label: { show: false },
+      emphasis: { label: { show: true, formatter: '{b}: {c} ({d}%)' } },
       data: levels.value.map((l) => ({
         name: l.level,
         value: l.count,
@@ -235,11 +257,12 @@ function onResize() {
 
   <div v-if="errorText" class="error-banner">{{ errorText }}</div>
 
-  <div class="card">
-    <div class="toolbar">
-      <div class="field" style="min-width: 360px">
-        <label>时间范围</label>
-        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+  <div class="dashboard-layout">
+    <!-- 左侧：筛选条件（时间范围 + 筛选） -->
+    <aside class="card dashboard-filters">
+      <div class="filter-section">
+        <div class="filter-title">时间范围 <span class="muted" style="font-weight:400;letter-spacing:0">北京时间 · 默认最近 7 天</span></div>
+        <div class="filter-row" style="flex-wrap:wrap">
           <div class="segmented">
             <button
               v-for="range in QUICK_RANGES" :key="range.minutes" type="button"
@@ -252,107 +275,102 @@ function onResize() {
           <DateTimePicker v-model="filters.endTime" placeholder="现在" @update:model-value="onCustomTime" />
         </div>
       </div>
-      <div class="field">
-        <label>Environment</label>
-        <select v-model="filters.environment" @change="refresh">
-          <option value="">全部</option>
-          <option v-for="env in ['local', 'dev', 'test', 'staging', 'prod']" :key="env" :value="env">{{ env }}</option>
-        </select>
+
+      <div class="filter-divider"></div>
+
+      <div class="filter-section">
+        <div class="filter-title">筛选</div>
+        <div class="filter-grid">
+          <div class="filter-cell">
+            <label>Environment</label>
+            <select v-model="filters.environment" @change="refresh">
+              <option value="">全部</option>
+              <option v-for="env in ['local', 'dev', 'test', 'staging', 'prod']" :key="env" :value="env">{{ env }}</option>
+            </select>
+          </div>
+          <div class="filter-cell">
+            <label>Service（空 = 全部）</label>
+            <select v-model="filters.service" @change="refresh">
+              <option value="">全部</option>
+              <option v-for="s in ranking" :key="s.service" :value="s.service">{{ s.service }}</option>
+            </select>
+          </div>
+          <div class="filter-cell">
+            <label>接入应用（api_key_ak）</label>
+            <input v-model.trim="filters.apiKeyAk" class="mono" placeholder="OB-…" @keyup.enter="refresh" />
+          </div>
+        </div>
       </div>
-      <div class="field">
-        <label>Service（空 = 全部）</label>
-        <select v-model="filters.service" @change="refresh">
-          <option value="">全部</option>
-          <option v-for="s in ranking" :key="s.service" :value="s.service">{{ s.service }}</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>接入应用（api_key_ak）</label>
-        <input v-model.trim="filters.apiKeyAk" class="mono" placeholder="OB-…" @keyup.enter="refresh" />
-      </div>
-      <div class="field">
-        <label>&nbsp;</label>
+
+      <div class="filter-actions">
         <button class="primary" :disabled="loading" @click="refresh">{{ loading ? '加载中…' : '刷新' }}</button>
+        <span class="muted" style="font-size:12px">范围：{{ rangeText }} · 30s 自动刷新</span>
       </div>
-      <span class="muted" style="margin-left:auto">范围：{{ rangeText }} · 30s 自动刷新</span>
-    </div>
+    </aside>
 
-    <div class="kpi-grid">
-      <div class="kpi clickable accent-total" @click="gotoTotalKpi">
-        <div class="kpi-top"><span class="kpi-dot" style="background:#7d97ad"></span><span class="label">日志总量</span></div>
-        <div class="value">{{ fmtNumber(overview?.total_logs) }}</div>
+    <!-- 右侧：统计指标 + 图表 + 列表 -->
+    <section class="dashboard-main">
+      <div class="kpi-grid">
+        <div
+          v-for="k in kpis" :key="k.label" class="kpi"
+          :class="'accent-' + k.accent" :style="k.click ? 'cursor:pointer' : ''"
+          @click="k.click && k.click()"
+        >
+          <div class="kpi-top"><span class="kpi-dot"></span><span class="label">{{ k.label }}</span></div>
+          <div class="value" :class="k.tone">{{ k.value }}<span v-if="k.unit" class="kpi-unit">{{ k.unit }}</span></div>
+        </div>
       </div>
-      <div class="kpi clickable accent-error" @click="gotoErrorSearch">
-        <div class="kpi-top"><span class="kpi-dot" style="background:#b07a7e"></span><span class="label">ERROR 数量</span></div>
-        <div class="value error">{{ fmtNumber(overview?.error_logs) }}</div>
+
+      <div class="card">
+        <h3>日志趋势（点击数据点跳转日志搜索）</h3>
+        <div id="trend-chart" class="chart"></div>
       </div>
-      <div class="kpi clickable accent-rate" @click="gotoErrorRateKpi">
-        <div class="kpi-top"><span class="kpi-dot" style="background:#8a5a5e"></span><span class="label">错误率</span></div>
-        <div class="value error">{{ overview ? (overview.error_rate * 100).toFixed(2) + '%' : '-' }}</div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>日志等级分布（点击跳转）</h3>
+          <div id="level-chart" class="chart"></div>
+        </div>
+        <div class="card">
+          <h3>服务日志 Top（点击跳转）</h3>
+          <div id="rank-chart" class="chart"></div>
+        </div>
       </div>
-      <div class="kpi clickable accent-trace" @click="gotoTraceKpi">
-        <div class="kpi-top"><span class="kpi-dot" style="background:#5f7d95"></span><span class="label">Trace 数量</span></div>
-        <div class="value">{{ fmtNumber(overview?.trace_count) }}</div>
+
+      <div class="card">
+        <h3>
+          最近 ERROR 日志
+          <button class="ghost" style="float:right" @click="gotoErrorSearch">查看全部 ERROR</button>
+        </h3>
+        <table class="data-table">
+          <colgroup>
+            <col style="width: 172px" />
+            <col style="width: 76px" />
+            <col style="width: 140px" />
+            <col style="width: 140px" />
+            <col />
+            <col style="width: 120px" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>时间</th><th>等级</th><th>服务</th><th>事件</th><th>消息</th><th>Trace</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="!recentErrors.length">
+              <td colspan="6" class="muted">当前范围内没有 ERROR / FATAL 日志</td>
+            </tr>
+            <tr v-for="log in recentErrors" :key="log.trace_id + log.timestamp" class="clickable" @click="goTrace(log)">
+              <td class="mono" :title="fmtBj(log.timestamp)">{{ fmtBj(log.timestamp) }}</td>
+              <td><span :class="'level-tag level-' + log.level">{{ log.level }}</span></td>
+              <td :title="log.service">{{ log.service }}</td>
+              <td class="mono" :title="log.event || ''">{{ log.event || '-' }}</td>
+              <td :title="log.message">{{ log.message }}</td>
+              <td class="mono" :title="log.trace_id">{{ log.trace_id?.slice(0, 12) }}…</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-    </div>
-
-    <div class="kpi-sub">
-      <div class="kpi accent-warn"><div class="kpi-top"><span class="kpi-dot" style="background:#c2ab84"></span><span class="label">WARN 数量</span></div><div class="value warn">{{ fmtNumber(overview?.warn_logs) }}</div></div>
-      <div class="kpi accent-services"><div class="kpi-top"><span class="kpi-dot" style="background:#8ba888"></span><span class="label">活跃服务</span></div><div class="value">{{ fmtNumber(overview?.active_services) }}</div></div>
-      <div class="kpi accent-duration"><div class="kpi-top"><span class="kpi-dot" style="background:#93a5b1"></span><span class="label">平均耗时</span></div><div class="value">{{ overview?.avg_duration_ms ?? '-' }} <span class="muted" style="font-size:12px">ms</span></div></div>
-      <div class="kpi accent-p95"><div class="kpi-top"><span class="kpi-dot" style="background:#a9bcca"></span><span class="label">P95 耗时</span></div><div class="value">{{ overview?.p95_duration_ms ?? '-' }} <span class="muted" style="font-size:12px">ms</span></div></div>
-      <div class="kpi accent-p99"><div class="kpi-top"><span class="kpi-dot" style="background:#b3bfc7"></span><span class="label">P99 耗时</span></div><div class="value">{{ overview?.p99_duration_ms ?? '-' }} <span class="muted" style="font-size:12px">ms</span></div></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h3>日志趋势（点击数据点跳转日志搜索）</h3>
-    <div id="trend-chart" class="chart"></div>
-  </div>
-
-  <div class="grid-2">
-    <div class="card">
-      <h3>日志等级分布（点击跳转）</h3>
-      <div id="level-chart" class="chart"></div>
-    </div>
-    <div class="card">
-      <h3>服务日志 Top（点击跳转）</h3>
-      <div id="rank-chart" class="chart"></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h3>
-      最近 ERROR 日志
-      <button class="ghost" style="float:right" @click="gotoErrorSearch">查看全部 ERROR</button>
-    </h3>
-    <table class="data-table">
-      <colgroup>
-        <col style="width: 172px" />
-        <col style="width: 76px" />
-        <col style="width: 140px" />
-        <col style="width: 140px" />
-        <col />
-        <col style="width: 120px" />
-      </colgroup>
-      <thead>
-        <tr>
-          <th>时间</th><th>等级</th><th>服务</th><th>事件</th><th>消息</th><th>Trace</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-if="!recentErrors.length">
-          <td colspan="6" class="muted">当前范围内没有 ERROR / FATAL 日志</td>
-        </tr>
-        <tr v-for="log in recentErrors" :key="log.trace_id + log.timestamp" class="clickable" @click="goTrace(log)">
-          <td class="mono" :title="fmtBj(log.timestamp)">{{ fmtBj(log.timestamp) }}</td>
-          <td><span :class="'level-tag level-' + log.level">{{ log.level }}</span></td>
-          <td :title="log.service">{{ log.service }}</td>
-          <td class="mono" :title="log.event || ''">{{ log.event || '-' }}</td>
-          <td :title="log.message">{{ log.message }}</td>
-          <td class="mono" :title="log.trace_id">{{ log.trace_id?.slice(0, 12) }}…</td>
-        </tr>
-      </tbody>
-    </table>
+    </section>
   </div>
 </template>

@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| **接口版本** | v1.3.0 |
+| **接口版本** | v1.3.1 |
 | **发布日期** | 2026-09-01 |
 | **Base URL** | `http://localhost:8080`（Compose 前端经 nginx 同源代理 `/api`） |
 | **更新日志** | 见 [CHANGELOG.md](CHANGELOG.md)，页面右上角「更新日志」同步展示 |
@@ -63,7 +63,6 @@ curl -i -X POST http://localhost:8080/api/v1/logs \
 | 1101 | 401 | 缺失或无效 API Key |
 | 1102 | 403 | 写入 Key 绑定 service/environment 不匹配 |
 | 1201 | 404 | 资源不存在（如 Trace 未找到） |
-| 1301 | 400 | 搜索时间范围超过 7 天 |
 | 1303 | 400 | 导出时间范围超过 24 小时 |
 | 1304 | 400 | 导出格式不支持（仅 csv / jsonl） |
 | 1401 | 502 | 存储错误（OpenObserve 异常） |
@@ -188,13 +187,13 @@ curl -s -X POST http://localhost:8080/api/v1/logs/batch \
 POST /api/v1/logs/search
 ```
 
-**功能描述**：多条件组合查询。时间范围默认最近 15 分钟（调用方不传时），最大 7 天；结果按 timestamp 倒序分页返回。查询条件由服务端构建为受控 SQL，**禁止前端提交 SQL**。
+**功能描述**：多条件组合查询。时间范围默认最近 15 分钟（调用方不传时），**无最大范围限制**；结果按 timestamp 倒序分页返回。查询条件由服务端构建为受控 SQL，**禁止前端提交 SQL**。
 
 **请求参数**（Body，全部可选）
 
 | 字段 | 类型 | 默认 | 说明 |
 | --- | --- | --- | --- |
-| start_time / end_time | string | 最近 15 分钟 | ISO-8601；范围 > 7 天 → 1301 |
+| start_time / end_time | string | 最近 15 分钟 | ISO-8601；无最大范围限制 |
 | service | string[] | 不限 | 服务名精确匹配 |
 | environment | string[] | 不限 | 受控枚举 |
 | level | string[] | 不限 | 受控枚举 |
@@ -213,7 +212,7 @@ POST /api/v1/logs/search
 | page / size | int | 回显分页参数 |
 | logs | array | LogRecord 数组（结构与写入模型一致，attributes 还原为对象） |
 
-**异常码**：`1001`（参数非法 / 非法枚举 / 时间格式错误）、`1301`（范围超 7 天）、`1401/1402`（存储异常/超时）。
+**异常码**：`1001`（参数非法 / 非法枚举 / 时间格式错误）、`1401/1402`（存储异常/超时）。
 
 ```bash
 # curl 示例：近 1 小时 prod 环境 ERROR 关键词 timeout
@@ -431,7 +430,7 @@ GET /health
 
 **功能描述**：进程存活检查（公开，无需鉴权）。
 
-**返回参数**：`{ "status": "UP", "version": "1.3.0", "release_date": "2026-09-07 15:52" }`
+**返回参数**：`{ "status": "UP", "version": "1.3.1", "release_date": "2026-09-08 11:16" }`
 
 ```bash
 # curl 示例
@@ -500,6 +499,7 @@ curl -s -X POST http://localhost:8080/api/v1/api-keys \
 
 ## 版本信息
 
+- **v1.3.1**（2026-09-08）：日志搜索时间范围去掉 7 天上限；Dashboard 改左右两栏布局；顶部统计指标统一对齐；等级分布饼图减少空白。
 - **v1.3.0**（2026-09-07）：AK/SK 鉴权与 API Key 管理页（统一管理员权限 + 内置默认 Key）；日志自动打 `api_key_ak` 可区分接入应用；Dashboard 去掉 24h 限制、默认最近 7 天。
 - **v1.2.6**（2026-09-07）：日志搜索页直接进入时重置日志等级为不选（去掉 keep-alive 残留），Dashboard 跳转携带的等级筛选仍生效。
 - **v1.2.5**（2026-09-07）：日志导出去除 10 万条数量上限（保留 24 小时时间范围）；Dashboard 时间选择与搜索页统一；日期选择器点击即高亮。
