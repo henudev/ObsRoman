@@ -20,6 +20,7 @@ public class DashboardQuery {
 
     private String environment;
     private String service;
+    private String apiKeyAk;
 
     private Set<Metric> metrics;
 
@@ -69,6 +70,14 @@ public class DashboardQuery {
 
     public void setService(String service) {
         this.service = service;
+    }
+
+    public String getApiKeyAk() {
+        return apiKeyAk;
+    }
+
+    public void setApiKeyAk(String apiKeyAk) {
+        this.apiKeyAk = apiKeyAk;
     }
 
     public Set<Metric> getMetrics() {

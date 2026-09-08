@@ -19,6 +19,7 @@ public class LogQuery {
     private String traceId;
     private String requestId;
     private String userId;
+    private String apiKeyAk;
     private String keyword;
 
     private int page = 1;
@@ -96,6 +97,14 @@ public class LogQuery {
 
     public void setUserId(String userId) {
         this.userId = userId;
+    }
+
+    public String getApiKeyAk() {
+        return apiKeyAk;
+    }
+
+    public void setApiKeyAk(String apiKeyAk) {
+        this.apiKeyAk = apiKeyAk;
     }
 
     public String getKeyword() {

@@ -13,16 +13,18 @@ const QUICK_RANGES = [
   { label: '15 分钟', minutes: 15 },
   { label: '1 小时', minutes: 60 },
   { label: '6 小时', minutes: 360 },
-  { label: '24 小时', minutes: 1440 }
+  { label: '24 小时', minutes: 1440 },
+  { label: '7 天', minutes: 10080 }
 ]
 
 const filters = reactive({
-  startTime: minutesAgoBjIso(60),
+  startTime: minutesAgoBjIso(10080),
   endTime: '',
   environment: '',
-  service: ''
+  service: '',
+  apiKeyAk: ''
 })
-const activeQuick = ref(60)
+const activeQuick = ref(10080)
 
 const loading = ref(false)
 const errorText = ref('')
@@ -68,7 +70,8 @@ function body() {
     start_time: windowStartIso(),
     end_time: windowEndIso(),
     environment: filters.environment || null,
-    service: filters.service || null
+    service: filters.service || null,
+    api_key_ak: filters.apiKeyAk || null
   }
 }
 
@@ -183,6 +186,7 @@ function goSearch({ start, end, preset }) {
   if (preset.levels.length) query.levels = preset.levels.join(',')
   if (preset.service) query.service = preset.service
   if (filters.environment) query.environment = filters.environment
+  if (filters.apiKeyAk) query.api_key_ak = filters.apiKeyAk
   router.push({ path: '/search', query })
 }
 
@@ -261,6 +265,10 @@ function onResize() {
           <option value="">全部</option>
           <option v-for="s in ranking" :key="s.service" :value="s.service">{{ s.service }}</option>
         </select>
+      </div>
+      <div class="field">
+        <label>接入应用（api_key_ak）</label>
+        <input v-model.trim="filters.apiKeyAk" class="mono" placeholder="OB-…" @keyup.enter="refresh" />
       </div>
       <div class="field">
         <label>&nbsp;</label>

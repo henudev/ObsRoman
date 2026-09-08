@@ -154,6 +154,7 @@ public class OpenObserveLogStorage implements LogStorage {
         }
         putIfNotNull(doc, "host", record.getHost());
         putIfNotNull(doc, "instance", record.getInstance());
+        putIfNotNull(doc, "api_key_ak", record.getApiKeyAk());
         if (record.getAttributes() != null && !record.getAttributes().isEmpty()) {
             doc.put("attributes", toJsonString(record.getAttributes()));
         }
@@ -344,6 +345,7 @@ public class OpenObserveLogStorage implements LogStorage {
         record.setPath(textOrNull(hit, "path"));
         record.setHost(textOrNull(hit, "host"));
         record.setInstance(textOrNull(hit, "instance"));
+        record.setApiKeyAk(textOrNull(hit, "api_key_ak"));
 
         if (hit.hasNonNull("status_code")) {
             record.setStatusCode(hit.get("status_code").asLong());

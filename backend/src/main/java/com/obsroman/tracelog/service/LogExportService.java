@@ -40,7 +40,7 @@ public class LogExportService {
     private static final String[] CSV_COLUMNS = {
             "timestamp", "trace_id", "span_id", "request_id", "service", "environment",
             "level", "type", "event", "message", "user_id", "method", "path",
-            "status_code", "duration_ms", "host", "instance", "attributes"
+            "status_code", "duration_ms", "host", "instance", "api_key_ak", "attributes"
     };
 
     private static final String CSV_BOM = "﻿";
@@ -119,6 +119,7 @@ public class LogExportService {
         search.setTraceId(request.getTraceId());
         search.setRequestId(request.getRequestId());
         search.setUserId(request.getUserId());
+        search.setApiKeyAk(request.getApiKeyAk());
         search.setKeyword(request.getKeyword());
         return search;
     }
@@ -161,6 +162,7 @@ public class LogExportService {
             case "duration_ms" -> record.getDurationMs() == null ? "" : String.valueOf(record.getDurationMs());
             case "host" -> nullSafe(record.getHost());
             case "instance" -> nullSafe(record.getInstance());
+            case "api_key_ak" -> nullSafe(record.getApiKeyAk());
             case "attributes" -> record.getAttributes() == null || record.getAttributes().isEmpty()
                     ? "" : toJsonString(record.getAttributes());
             default -> "";

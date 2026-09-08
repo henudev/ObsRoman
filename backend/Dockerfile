@@ -13,6 +13,8 @@ WORKDIR /app
 # 统一北京时区：服务端趋势图桶标签、日志时间戳、ZoneId.systemDefault 均为 Asia/Shanghai
 ENV TZ=Asia/Shanghai
 RUN addgroup --system app && adduser --system --ingroup app app
+# 运行期 API Key 数据目录（挂载卷后继承 app 属主，管理页 CRUD 可写）
+RUN mkdir -p /data && chown app:app /data
 COPY --from=build /build/target/trace-log-service.jar app.jar
 USER app
 EXPOSE 8080

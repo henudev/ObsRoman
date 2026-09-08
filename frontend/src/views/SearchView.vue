@@ -19,11 +19,13 @@ const QUICK_RANGES = [
   { label: '15 分钟', minutes: 15 },
   { label: '1 小时', minutes: 60 },
   { label: '6 小时', minutes: 360 },
-  { label: '24 小时', minutes: 1440 }
+  { label: '24 小时', minutes: 1440 },
+  { label: '7 天', minutes: 10080 }
 ]
 
 const form = reactive({
-  startTime: minutesAgoBjIso(60),
+  // 默认时间范围与 Dashboard 一致：最近 7 天
+  startTime: minutesAgoBjIso(10080),
   endTime: '',
   service: '',
   environment: [],
@@ -32,13 +34,14 @@ const form = reactive({
   traceId: route.query.trace_id || '',
   requestId: '',
   userId: '',
+  apiKeyAk: '',
   keyword: '',
   page: 1,
   size: 50
 })
 
-const showAdvanced = ref(true)
-const activeQuick = ref(60)
+const showAdvanced = ref(false)
+const activeQuick = ref(10080)
 
 const result = ref(null)
 const loading = ref(false)
@@ -63,6 +66,7 @@ const advancedActiveCount = computed(() => {
   if (form.traceId) count++
   if (form.requestId) count++
   if (form.userId) count++
+  if (form.apiKeyAk) count++
   return count
 })
 
@@ -77,7 +81,7 @@ function onCustomTime() {
 }
 
 function resetFilters() {
-  form.startTime = minutesAgoBjIso(60)
+  form.startTime = minutesAgoBjIso(10080)
   form.endTime = ''
   form.service = ''
   form.environment = []
@@ -86,9 +90,10 @@ function resetFilters() {
   form.traceId = ''
   form.requestId = ''
   form.userId = ''
+  form.apiKeyAk = ''
   form.keyword = ''
   form.page = 1
-  activeQuick.value = 60
+  activeQuick.value = 10080
   search(1)
 }
 
@@ -117,6 +122,7 @@ function payload() {
     trace_id: form.traceId || null,
     request_id: form.requestId || null,
     user_id: form.userId || null,
+    api_key_ak: form.apiKeyAk || null,
     keyword: form.keyword || null,
     page: form.page,
     size: form.size
@@ -167,6 +173,7 @@ function applyRouteQuery() {
   if (query.levels) { form.levels = String(query.levels).split(',').filter(Boolean); applied = true }
   if (query.service) { form.service = String(query.service); applied = true }
   if (query.environment) { form.environment = String(query.environment).split(',').filter(Boolean); applied = true }
+  if (query.api_key_ak) { form.apiKeyAk = String(query.api_key_ak); applied = true }
   return applied
 }
 
@@ -193,10 +200,12 @@ onActivated(() => {
   <div v-if="errorText" class="error-banner">{{ errorText }}</div>
   <div v-if="toast" class="toast" :class="{ warn: toast.startsWith('导出完成：当前') }">{{ toast }}</div>
 
-  <div class="card">
+  <div class="search-layout">
+  <!-- 左侧：筛选 -->
+  <aside class="card search-filters">
     <!-- 时间范围 -->
     <div class="filter-section">
-      <div class="filter-title">时间范围 <span class="muted" style="font-weight:400;letter-spacing:0">北京时间 · 默认最近 1 小时</span></div>
+      <div class="filter-title">时间范围 <span class="muted" style="font-weight:400;letter-spacing:0">北京时间 · 默认最近 7 天</span></div>
       <div class="filter-row">
         <div class="segmented">
           <button
@@ -269,6 +278,10 @@ onActivated(() => {
               <input v-model="form.userId" placeholder="10001" @keyup.enter="search(1)" />
             </div>
           </div>
+          <div class="filter-cell">
+            <label>接入应用（api_key_ak）</label>
+            <input v-model="form.apiKeyAk" class="mono" placeholder="OB-…" @keyup.enter="search(1)" />
+          </div>
         </div>
       </div>
     </div>
@@ -302,9 +315,10 @@ onActivated(() => {
       </button>
       <button class="primary" :disabled="loading" @click="search(1)">{{ loading ? '搜索中…' : '搜索' }}</button>
     </div>
-  </div>
+  </aside>
 
-  <div class="card">
+  <!-- 右侧：结果列表 -->
+  <section class="card search-results">
     <div v-if="result" class="muted" style="margin-bottom: 10px">
       命中 <b>{{ fmtNumber(result.total) }}</b> 条，第 {{ result.page }} / {{ totalPages() }} 页
       <span v-if="form.startTime" style="margin-left: 12px">
@@ -320,17 +334,18 @@ onActivated(() => {
         <col />
         <col style="width: 116px" />
         <col style="width: 64px" />
+        <col style="width: 110px" />
         <col style="width: 260px" />
       </colgroup>
       <thead>
         <tr>
           <th>时间（北京）</th><th>等级</th><th>服务</th><th>事件</th><th>消息</th>
-          <th>Trace</th><th>耗时</th><th>Attributes</th>
+          <th>Trace</th><th>耗时</th><th>接入</th><th>Attributes</th>
         </tr>
       </thead>
       <tbody>
         <tr v-if="result && !result.logs.length">
-          <td colspan="8" class="muted">没有符合条件的日志，请调整时间范围或过滤条件</td>
+          <td colspan="9" class="muted">没有符合条件的日志，请调整时间范围或过滤条件</td>
         </tr>
         <tr v-for="log in result?.logs || []" :key="log.timestamp + log.trace_id" class="clickable" @click="goTrace(log)">
           <td class="mono" :title="fmtBj(log.timestamp)">{{ fmtBj(log.timestamp) }}</td>
@@ -340,6 +355,7 @@ onActivated(() => {
           <td :title="log.message">{{ log.message }}</td>
           <td class="mono" :title="log.trace_id">{{ log.trace_id?.slice(0, 12) }}…</td>
           <td :title="log.duration_ms != null ? log.duration_ms + ' ms' : ''">{{ log.duration_ms ?? '-' }}</td>
+          <td class="mono" :title="log.api_key_ak || ''">{{ log.api_key_ak || '-' }}</td>
           <td class="mono" :title="log.attributes ? JSON.stringify(log.attributes) : ''">
             {{ log.attributes ? JSON.stringify(log.attributes) : '-' }}
           </td>
@@ -352,6 +368,7 @@ onActivated(() => {
       <span class="muted">{{ result.page }} / {{ totalPages() }}</span>
       <button class="ghost" :disabled="result.page >= totalPages()" @click="search(result.page + 1)">下一页</button>
     </div>
+  </section>
   </div>
   </div>
 </template>

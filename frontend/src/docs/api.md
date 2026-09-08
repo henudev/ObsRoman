@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| **接口版本** | v1.2.6 |
+| **接口版本** | v1.3.0 |
 | **发布日期** | 2026-09-01 |
 | **Base URL** | `http://localhost:8080`（Compose 前端经 nginx 同源代理 `/api`） |
 | **更新日志** | 见 [CHANGELOG.md](CHANGELOG.md)，页面右上角「更新日志」同步展示 |
@@ -19,30 +19,26 @@
 - [Dashboard](#5-dashboard)（Overview / 日志趋势 / 等级分布 / 服务 Top / 最近 ERROR）
 - [日志导出](#6-日志导出)
 - [系统接口](#7-系统接口)（/health · /ready）
+- [API Key 管理](#8-api-key-管理)（列表 / 创建 / 更新 / 删除，任意有效 Key）
 
 ---
 
 ## 鉴权
 
-**功能描述**：所有业务 API 需要 Bearer Token；`/health`、`/ready` 公开。
+**功能描述**：所有业务 API 需要 Bearer Token；`/health`、`/ready` 公开。鉴权采用 **AK/SK** 模式：
+`Authorization: Bearer <ak>:<sk>`（Access Key 公开、Secret Key 机密）；不含冒号则视为旧式单 key（向后兼容）。
+**统一管理员权限**：所有 Key 权限一致（可读可写、可管理），不再细分；系统内置默认管理员 Key（`admin:admin`）。
 
-| 权限 | 允许的操作 |
-| --- | --- |
-| `log:write` | `POST /api/v1/logs`、`POST /api/v1/logs/batch` |
-| `log:read` | `POST /api/v1/logs/search` |
-| `trace:read` | `GET /api/v1/traces/{traceId}` |
-| `dashboard:read` | `POST /api/v1/dashboard/**` |
-| `log:export` | `POST /api/v1/logs/export` |
-
-写入 Key 可绑定 `service` / `environment`：绑定的 Key 提交的日志必须与之匹配，否则该条被拒绝（单条 → 403；批量 → 计入 rejected）。
+Key 可绑定 `service` / `environment`：绑定的 Key 提交的日志必须与之匹配，否则该条被拒绝（单条 → 403；批量 → 计入 rejected）。
+写入时按鉴权 Key 身份给日志自动打 `api_key_ak` 字段，可用于查询/统计时区分接入应用。
 
 **请求参数**（Header）
 
 | 名称 | 必填 | 说明 |
 | --- | --- | --- |
-| Authorization | 是 | `Bearer <api-key>` |
+| Authorization | 是 | `Bearer <ak>:<sk>`（或旧式 `Bearer <key>`） |
 
-**异常码**：`1101`（401，缺失/无效 Key）、`1102`（403，权限不足或绑定不匹配）。
+**异常码**：`1101`（401，缺失/无效 Key）、`1102`（403，写入 Key 绑定 service/environment 不匹配）。
 
 ```bash
 # curl 示例：无 Key 访问（期望 401）
@@ -65,10 +61,9 @@ curl -i -X POST http://localhost:8080/api/v1/logs \
 | 1005 | 413 | 请求体超过 5 MB |
 | 1006 | 202 | 队列满丢弃（内部计数 log_drop_total） |
 | 1101 | 401 | 缺失或无效 API Key |
-| 1102 | 403 | 权限不足 / 写入 Key 绑定不匹配 |
+| 1102 | 403 | 写入 Key 绑定 service/environment 不匹配 |
 | 1201 | 404 | 资源不存在（如 Trace 未找到） |
 | 1301 | 400 | 搜索时间范围超过 7 天 |
-| 1302 | 400 | Dashboard 时间范围超过 24 小时 |
 | 1303 | 400 | 导出时间范围超过 24 小时 |
 | 1304 | 400 | 导出格式不支持（仅 csv / jsonl） |
 | 1401 | 502 | 存储错误（OpenObserve 异常） |
@@ -113,12 +108,12 @@ POST /api/v1/logs
 | message | string | `accepted` |
 | data | null | — |
 
-**异常码**：`1001`（400 Body 非法）、`1002`（400 字段校验失败，message 指明原因）、`1003`（400 超过 64KB）、`1101/1102`（鉴权）、`1006`（202 队列满丢弃）。
+**异常码**：`1001`（400 Body 非法）、`1002`（400 字段校验失败，message 指明原因）、`1003`（400 超过 64KB）、`1101`（鉴权）、`1102`（Key 绑定不匹配）、`1006`（202 队列满丢弃）。
 
 ```bash
 # curl 示例：写入单条日志
 curl -s -X POST http://localhost:8080/api/v1/logs \
-  -H "Authorization: Bearer dev-writer-key" \
+  -H "Authorization: Bearer admin:admin" \
   -H 'Content-Type: application/json' \
   -d '{
     "timestamp": "2026-09-01T14:20:30.123+08:00",
@@ -175,7 +170,7 @@ POST /api/v1/logs/batch
 ```bash
 # curl 示例：3 条日志，其中 1 条 trace_id 非法（部分成功）
 curl -s -X POST http://localhost:8080/api/v1/logs/batch \
-  -H "Authorization: Bearer dev-writer-key" -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer admin:admin" -H 'Content-Type: application/json' \
   -d '{"logs":[
     {"trace_id":"4bf92f3577b34da6a3ce929d0e0e4736","service":"gateway","environment":"prod","level":"INFO","message":"收到请求"},
     {"trace_id":"bad-id","service":"gateway","level":"INFO","message":"非法 trace_id"},
@@ -205,6 +200,7 @@ POST /api/v1/logs/search
 | level | string[] | 不限 | 受控枚举 |
 | type | string[] | 不限 | 精确匹配 |
 | trace_id / request_id / user_id | string | 不限 | 精确匹配 |
+| api_key_ak | string | 不限 | 按写入时所用的 AK（接入应用）精确匹配 |
 | keyword | string | 不限 | 大小写不敏感，匹配 message / event / attributes |
 | page | int | 1 | ≥1 |
 | size | int | 50 | 1~500 |
@@ -222,7 +218,7 @@ POST /api/v1/logs/search
 ```bash
 # curl 示例：近 1 小时 prod 环境 ERROR 关键词 timeout
 curl -s -X POST http://localhost:8080/api/v1/logs/search \
-  -H "Authorization: Bearer dev-reader-key" -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer admin:admin" -H 'Content-Type: application/json' \
   -d '{
     "start_time": "2026-09-01T15:00:00+08:00",
     "end_time":   "2026-09-01T16:00:00+08:00",
@@ -268,7 +264,7 @@ GET /api/v1/traces/{traceId}
 ```bash
 # curl 示例
 curl -s http://localhost:8080/api/v1/traces/4bf92f3577b34da6a3ce929d0e0e4736 \
-  -H "Authorization: Bearer dev-reader-key"
+  -H "Authorization: Bearer admin:admin"
 # 期望：{"code":0,"data":{"trace_id":"...","status":"ERROR","duration_ms":2000,
 #        "services":["gateway","order-service","payment-service"],"logs":[...]}}
 ```
@@ -283,11 +279,12 @@ curl -s http://localhost:8080/api/v1/traces/4bf92f3577b34da6a3ce929d0e0e4736 \
 
 | 字段 | 类型 | 默认 | 说明 |
 | --- | --- | --- | --- |
-| start_time / end_time | string | 最近 1 小时 | ISO-8601；范围 > 24 小时 → 1302 |
+| start_time / end_time | string | 最近 7 天 | ISO-8601；无最大范围限制 |
 | environment | string | 不限 | 受控枚举 |
 | service | string | 不限（null/空 = 全部） | 精确匹配 |
+| api_key_ak | string | 不限 | 按接入应用（写入 AK）精确匹配 |
 
-**异常码**（四个接口共用）：`1001`（参数非法）、`1302`（范围超 24 小时）、`1401/1402`。
+**异常码**（四个接口共用）：`1001`（参数非法）、`1401/1402`。
 
 ### 5.1 Overview 聚合
 
@@ -300,7 +297,7 @@ POST /api/v1/dashboard/overview
 ```bash
 # curl 示例
 curl -s -X POST http://localhost:8080/api/v1/dashboard/overview \
-  -H "Authorization: Bearer dev-reader-key" -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer admin:admin" -H 'Content-Type: application/json' \
   -d '{"environment":"prod"}'
 # 期望：{"code":0,"data":{"total_logs":603,"error_logs":58,"warn_logs":70,"error_rate":0.0962,
 #        "trace_count":41,"active_services":6,"avg_duration_ms":1521.2,
@@ -320,7 +317,7 @@ POST /api/v1/dashboard/log-trend
 ```bash
 # curl 示例
 curl -s -X POST http://localhost:8080/api/v1/dashboard/log-trend \
-  -H "Authorization: Bearer dev-reader-key" -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer admin:admin" -H 'Content-Type: application/json' \
   -d '{"environment":"prod"}'
 ```
 
@@ -335,7 +332,7 @@ POST /api/v1/dashboard/level-distribution
 ```bash
 # curl 示例
 curl -s -X POST http://localhost:8080/api/v1/dashboard/level-distribution \
-  -H "Authorization: Bearer dev-reader-key" -H 'Content-Type: application/json' -d '{}'
+  -H "Authorization: Bearer admin:admin" -H 'Content-Type: application/json' -d '{}'
 ```
 
 ### 5.4 服务日志 Top
@@ -351,7 +348,7 @@ POST /api/v1/dashboard/service-ranking
 ```bash
 # curl 示例
 curl -s -X POST http://localhost:8080/api/v1/dashboard/service-ranking \
-  -H "Authorization: Bearer dev-reader-key" -H 'Content-Type: application/json' -d '{}'
+  -H "Authorization: Bearer admin:admin" -H 'Content-Type: application/json' -d '{}'
 ```
 
 ### 5.5 最近 ERROR 日志
@@ -369,7 +366,7 @@ POST /api/v1/dashboard/recent-errors
 ```bash
 # curl 示例
 curl -s -X POST http://localhost:8080/api/v1/dashboard/recent-errors \
-  -H "Authorization: Bearer dev-reader-key" -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer admin:admin" -H 'Content-Type: application/json' \
   -d '{"size": 5}'
 ```
 
@@ -403,7 +400,7 @@ POST /api/v1/logs/export
 ```bash
 # curl 示例 1：导出近 24h 的 ERROR 日志为 CSV
 curl -s -X POST http://localhost:8080/api/v1/logs/export \
-  -H "Authorization: Bearer dev-reader-key" -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer admin:admin" -H 'Content-Type: application/json' \
   -d '{
     "start_time": "2026-09-01T00:00:00+08:00",
     "end_time":   "2026-09-01T23:59:59+08:00",
@@ -415,7 +412,7 @@ curl -s -X POST http://localhost:8080/api/v1/logs/export \
 
 # curl 示例 2：导出某条 Trace 全部日志为 JSONL，并查看导出行数
 curl -s -D - -X POST http://localhost:8080/api/v1/logs/export \
-  -H "Authorization: Bearer dev-reader-key" -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer admin:admin" -H 'Content-Type: application/json' \
   -d '{"trace_id":"4bf92f3577b34da6a3ce929d0e0e4736","format":"jsonl"}' \
   -o logs.jsonl | grep -i x-export-rows
 ```
@@ -434,7 +431,7 @@ GET /health
 
 **功能描述**：进程存活检查（公开，无需鉴权）。
 
-**返回参数**：`{ "status": "UP", "version": "1.2.6", "release_date": "2026-09-07 14:07" }`
+**返回参数**：`{ "status": "UP", "version": "1.3.0", "release_date": "2026-09-07 15:52" }`
 
 ```bash
 # curl 示例
@@ -469,8 +466,41 @@ curl -s http://localhost:8080/ready
 
 ---
 
+## 8. API Key 管理
+
+```
+GET    /api/v1/api-keys            # 列表
+POST   /api/v1/api-keys            # 创建
+PUT    /api/v1/api-keys/{ak}       # 更新（enabled / permissions / 绑定 / name）
+DELETE /api/v1/api-keys/{ak}       # 删除
+```
+
+**功能描述**：管理接入 Key（**AK/SK** 模型）。任意有效 Key 均可访问（**统一管理员权限**）；列表与更新**不返回 Secret**，仅创建时一次性返回 `ak`/`sk`。Key 会在 `/data/api-keys.json` 持久化，鉴权不依赖 OpenObserve。
+
+**创建请求参数**（Body）
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| name | string | 是 | 应用名称 |
+| service / environment | string | 否 | 绑定限定（提交日志需匹配） |
+
+**创建返回**（`data`）：`{ name, ak, sk, boundService, boundEnvironment, enabled }`；`sk` 仅此一次返回。
+
+**异常码**：`1001`（参数非法）、`1201`（未找到）。
+
+```bash
+# 创建（用内置默认管理员 Key）
+curl -s -X POST http://localhost:8080/api/v1/api-keys \
+  -H "Authorization: Bearer admin:admin" -H 'Content-Type: application/json' \
+  -d '{"name":"order-service","service":"order-service"}'
+# 返回 sk，仅此一次，请妥善保存
+```
+
+---
+
 ## 版本信息
 
+- **v1.3.0**（2026-09-07）：AK/SK 鉴权与 API Key 管理页（统一管理员权限 + 内置默认 Key）；日志自动打 `api_key_ak` 可区分接入应用；Dashboard 去掉 24h 限制、默认最近 7 天。
 - **v1.2.6**（2026-09-07）：日志搜索页直接进入时重置日志等级为不选（去掉 keep-alive 残留），Dashboard 跳转携带的等级筛选仍生效。
 - **v1.2.5**（2026-09-07）：日志导出去除 10 万条数量上限（保留 24 小时时间范围）；Dashboard 时间选择与搜索页统一；日期选择器点击即高亮。
 - **v1.2.4**（2026-09-01）：日志搜索 / Dashboard「最近 ERROR」列表固定行高（无接口变更）。

@@ -68,6 +68,7 @@ public class DashboardService {
         search.setEndTime(request.endTime);
         search.setEnvironment(request.environment == null ? null : java.util.List.of(request.environment));
         search.setService(request.service == null ? null : java.util.List.of(request.service));
+        search.setApiKeyAk(request.apiKeyAk);
         search.setLevel(java.util.List.of("ERROR", "FATAL"));
         search.setSize(request.size == null ? 10 : request.size);
         search.setPage(1);
@@ -95,13 +96,6 @@ public class DashboardService {
         if (!start.isBefore(end)) {
             throw new ApiException(ErrorCode.INVALID_REQUEST, "start_time must be before end_time");
         }
-        long rangeMs = end.toInstant().toEpochMilli() - start.toInstant().toEpochMilli();
-        long maxRangeMs = limits.getDashboardMaxRangeHours() * 3600_000L;
-        if (rangeMs > maxRangeMs) {
-            throw new ApiException(ErrorCode.DASHBOARD_RANGE_EXCEEDED,
-                    "dashboard range " + (rangeMs / 3600_000L) + "h exceeds limit "
-                            + limits.getDashboardMaxRangeHours() + " hours");
-        }
 
         DashboardQuery query = new DashboardQuery();
         query.setStartTime(start);
@@ -119,6 +113,9 @@ public class DashboardService {
         if (request.service != null && !request.service.isBlank()) {
             query.setService(request.service.trim().toLowerCase(Locale.ROOT));
         }
+        if (request.apiKeyAk != null && !request.apiKeyAk.isBlank()) {
+            query.setApiKeyAk(request.apiKeyAk.trim().toLowerCase(Locale.ROOT));
+        }
         query.setMetrics(EnumSet.of(metric));
         return query;
     }
@@ -134,7 +131,7 @@ public class DashboardService {
         }
     }
 
-    /** Dashboard 通用筛选条件（时间范围 + environment + service，service 为空表示全部） */
+    /** Dashboard 通用筛选条件（时间范围 + environment + service + api_key_ak，空表示不限） */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class DashboardRequest {
         @JsonProperty("start_time")
@@ -148,6 +145,9 @@ public class DashboardService {
 
         @JsonProperty("service")
         public String service;
+
+        @JsonProperty("api_key_ak")
+        public String apiKeyAk;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -163,6 +163,9 @@ public class DashboardService {
 
         @JsonProperty("service")
         public String service;
+
+        @JsonProperty("api_key_ak")
+        public String apiKeyAk;
 
         @JsonProperty("size")
         public Integer size;

@@ -82,6 +82,9 @@ public final class OpenObserveSql {
             if (notBlank(query.getUserId())) {
                 filterFields.add("user_id");
             }
+            // 注意：api_key_ak 是服务端写入的受控字段（首次写日志即建列），
+            // 不参与 schema 裁剪——否则 60s schema 缓存未收录时过滤会被误判为"不可能命中"而置空。
+            // 由 OO 的 schema 校验 + 未知字段自愈重试处理。
             for (String field : filterFields) {
                 if (!known.test(field)) {
                     return null;
@@ -105,6 +108,7 @@ public final class OpenObserveSql {
         appendEquals(sb, "trace_id", query.getTraceId(), known);
         appendEquals(sb, "request_id", query.getRequestId(), known);
         appendEquals(sb, "user_id", query.getUserId(), known);
+        appendEquals(sb, "api_key_ak", query.getApiKeyAk(), known);
 
         String keyword = sanitizeKeyword(query.getKeyword());
         if (keyword != null) {
@@ -138,6 +142,7 @@ public final class OpenObserveSql {
                 && !known.test("environment")) {
             return null;
         }
+        // api_key_ak 为服务端受控字段，不参与 schema 裁剪（由 OO 校验 + 自愈重试处理）
         StringBuilder sb = new StringBuilder();
         sb.append("_timestamp >= ").append(query.getStartTimeMicros())
                 .append(" AND _timestamp < ").append(query.getEndTimeMicros());
@@ -146,6 +151,9 @@ public final class OpenObserveSql {
         }
         if (query.getService() != null && !query.getService().isBlank()) {
             sb.append(" AND service = ").append(quote(query.getService().trim().toLowerCase(Locale.ROOT)));
+        }
+        if (query.getApiKeyAk() != null && !query.getApiKeyAk().isBlank()) {
+            sb.append(" AND api_key_ak = ").append(quote(query.getApiKeyAk().trim().toLowerCase(Locale.ROOT)));
         }
         return sb.toString();
     }

@@ -1,13 +1,7 @@
-const KEY_STORAGE = 'tls_api_key'
-
+// 前端统一使用内置管理员默认 Key（顶栏无需再填写 Key）；
+// 部署时可通过构建环境变量 VITE_DEFAULT_API_KEY 覆盖，默认 admin:admin 与服务端内置 key 一致。
 export function getApiKey() {
-  return localStorage.getItem(KEY_STORAGE)
-    || import.meta.env.VITE_DEFAULT_API_KEY
-    || ''
-}
-
-export function setApiKey(key) {
-  localStorage.setItem(KEY_STORAGE, key.trim())
+  return import.meta.env.VITE_DEFAULT_API_KEY || 'admin:admin'
 }
 
 export class ApiError extends Error {
@@ -77,4 +71,22 @@ export function downloadBlob(blob, filename) {
   link.click()
   document.body.removeChild(link)
   URL.revokeObjectURL(url)
+}
+
+// ---------- API Key 管理（需 key:admin 权限） ----------
+
+export async function apiKeysList() {
+  return apiRequest('GET', '/api/v1/api-keys')
+}
+
+export async function apiKeyCreate(payload) {
+  return apiRequest('POST', '/api/v1/api-keys', payload)
+}
+
+export async function apiKeyUpdate(ak, payload) {
+  return apiRequest('PUT', `/api/v1/api-keys/${encodeURIComponent(ak)}`, payload)
+}
+
+export async function apiKeyDelete(ak) {
+  return apiRequest('DELETE', `/api/v1/api-keys/${encodeURIComponent(ak)}`)
 }

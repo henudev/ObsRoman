@@ -91,7 +91,12 @@ public class TraceLogProperties {
     public static class Security {
         /** false 时关闭鉴权，仅限本地调试 */
         private boolean enabled = true;
-        private List<ApiKeyConfig> apiKeys = new ArrayList<>();
+        /** 运行期 API Key 的数据文件（管理页 CRUD 持久化；鉴权不依赖 OpenObserve） */
+        private String dataFile = "./data/api-keys.json";
+        /** 内置管理员默认 Key 的 Access Key（默认 admin） */
+        private String adminAk = "admin";
+        /** 内置管理员默认 Key 的 Secret Key（默认 admin，生产请用环境变量覆盖） */
+        private String adminSk = "admin";
 
         public boolean isEnabled() {
             return enabled;
@@ -101,62 +106,28 @@ public class TraceLogProperties {
             this.enabled = enabled;
         }
 
-        public List<ApiKeyConfig> getApiKeys() {
-            return apiKeys;
+        public String getDataFile() {
+            return dataFile;
         }
 
-        public void setApiKeys(List<ApiKeyConfig> apiKeys) {
-            this.apiKeys = apiKeys;
-        }
-    }
-
-    public static class ApiKeyConfig {
-        private String name;
-        private String key;
-        /** 逗号分隔或 YAML 列表：log:write,log:read,trace:read,dashboard:read,log:export */
-        private List<String> permissions = new ArrayList<>();
-        /** 写入 Key 可绑定 service / environment（空表示不限制） */
-        private String service;
-        private String environment;
-
-        public String getName() {
-            return name;
+        public void setDataFile(String dataFile) {
+            this.dataFile = dataFile;
         }
 
-        public void setName(String name) {
-            this.name = name;
+        public String getAdminAk() {
+            return adminAk;
         }
 
-        public String getKey() {
-            return key;
+        public void setAdminAk(String adminAk) {
+            this.adminAk = adminAk;
         }
 
-        public void setKey(String key) {
-            this.key = key;
+        public String getAdminSk() {
+            return adminSk;
         }
 
-        public List<String> getPermissions() {
-            return permissions;
-        }
-
-        public void setPermissions(List<String> permissions) {
-            this.permissions = permissions;
-        }
-
-        public String getService() {
-            return service;
-        }
-
-        public void setService(String service) {
-            this.service = service;
-        }
-
-        public String getEnvironment() {
-            return environment;
-        }
-
-        public void setEnvironment(String environment) {
-            this.environment = environment;
+        public void setAdminSk(String adminSk) {
+            this.adminSk = adminSk;
         }
     }
 
@@ -168,8 +139,7 @@ public class TraceLogProperties {
         private int searchMaxSize = 500;
         private long searchDefaultRangeMinutes = 15;
         private long searchMaxRangeDays = 7;
-        private long dashboardDefaultRangeMinutes = 60;
-        private long dashboardMaxRangeHours = 24;
+        private long dashboardDefaultRangeMinutes = 10080; // 最近 7 天
         private long exportMaxRangeHours = 24;
         private int exportPageSize = 1000;
         private int traceMaxLogs = 5000;
@@ -236,14 +206,6 @@ public class TraceLogProperties {
 
         public void setDashboardDefaultRangeMinutes(long dashboardDefaultRangeMinutes) {
             this.dashboardDefaultRangeMinutes = dashboardDefaultRangeMinutes;
-        }
-
-        public long getDashboardMaxRangeHours() {
-            return dashboardMaxRangeHours;
-        }
-
-        public void setDashboardMaxRangeHours(long dashboardMaxRangeHours) {
-            this.dashboardMaxRangeHours = dashboardMaxRangeHours;
         }
 
         public long getExportMaxRangeHours() {

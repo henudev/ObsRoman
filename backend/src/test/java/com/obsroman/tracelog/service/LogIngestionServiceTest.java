@@ -82,7 +82,8 @@ class LogIngestionServiceTest {
 
     @Test
     void writeKeyBindingEnforcesServiceAndEnvironment() {
-        ApiKey boundKey = new ApiKey("order-writer", "k", Set.of("log:write"), "order-service", "prod");
+        ApiKey boundKey = new ApiKey("order-writer", "k", "sk-secret", null,
+                "order-service", "prod", true, 0);
 
         service.ingestSingle(log("order-service", "INFO"), boundKey); // OK
 

@@ -13,6 +13,7 @@ frontend/dist/
 # --- 本地环境与运行时数据 ---
 .env
 openobserve-data/
+backend/data/
 *.local.yml
 
 # --- IDE ---

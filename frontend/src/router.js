@@ -4,6 +4,7 @@ import SearchView from './views/SearchView.vue'
 import TraceView from './views/TraceView.vue'
 import ApiDocsView from './views/ApiDocsView.vue'
 import SdkDocsView from './views/SdkDocsView.vue'
+import ApiKeysView from './views/ApiKeysView.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -12,6 +13,7 @@ export const router = createRouter({
     { path: '/search', name: 'search', component: SearchView },
     { path: '/trace/:traceId', name: 'trace', component: TraceView, props: true },
     { path: '/docs', name: 'docs', component: ApiDocsView },
-    { path: '/sdk', name: 'sdk', component: SdkDocsView }
+    { path: '/sdk', name: 'sdk', component: SdkDocsView },
+    { path: '/keys', name: 'keys', component: ApiKeysView }
   ]
 })

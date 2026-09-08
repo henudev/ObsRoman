@@ -540,6 +540,20 @@ tr.clickable:hover td { background: var(--primary-soft); }
 
 .pagination { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
 
+/* ===== 日志搜索：左右两栏布局（筛选左 / 结果右，占满页面） ===== */
+.search-layout {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.search-filters { position: sticky; top: 12px; }
+.search-results { min-width: 0; overflow-x: auto; }
+@media (max-width: 1100px) {
+  .search-layout { grid-template-columns: 1fr; }
+  .search-filters { position: static; }
+}
+
 .error-banner {
   background: #f7ecec;
   border: 1px solid #e3cccc;

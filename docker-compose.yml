@@ -28,13 +28,17 @@ services:
       OPENOBSERVE_USERNAME: ${OO_ROOT_USER_EMAIL:-root@example.com}
       OPENOBSERVE_PASSWORD: ${OO_ROOT_USER_PASSWORD:-Complexpass#123}
       # API Key（以下默认值仅供本地开发联调，生产必须覆盖）
-      TRACE_LOG_ADMIN_KEY: ${TRACE_LOG_ADMIN_KEY:-dev-admin-key}
-      TRACE_LOG_WRITER_KEY: ${TRACE_LOG_WRITER_KEY:-dev-writer-key}
-      TRACE_LOG_READER_KEY: ${TRACE_LOG_READER_KEY:-dev-reader-key}
+      # 内置管理员默认 Key（统一管理员权限；生产务必覆盖 Secret）
+      TRACE_LOG_ADMIN_KEY: ${TRACE_LOG_ADMIN_KEY:-admin}
+      TRACE_LOG_ADMIN_SECRET: ${TRACE_LOG_ADMIN_SECRET:-admin}
+      # 运行期 API Key 数据文件（持久化，鉴权不依赖 OpenObserve）
+      TRACE_LOG_DATA_FILE: /data/api-keys.json
       # CORS：compose 前端(3000) + 本地 Vite 开发(5173)
       TRACE_LOG_CORS_ORIGINS: http://localhost:3000,http://localhost:5173
       TZ: Asia/Shanghai
       JAVA_OPTS: -XX:MaxRAMPercentage=75.0
+    volumes:
+      - obsroman-data:/data
     ports:
       - "8080:8080"
     healthcheck:
@@ -50,7 +54,8 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
       args:
-        VITE_DEFAULT_API_KEY: ${TRACE_LOG_READER_KEY:-dev-reader-key}
+        # 前端统一使用内置管理员默认 Key（顶栏无需再填），与服务端默认保持一致
+        VITE_DEFAULT_API_KEY: ${TRACE_LOG_ADMIN_KEY:-admin}:${TRACE_LOG_ADMIN_SECRET:-admin}
     container_name: obsroman-frontend
     depends_on:
       backend:
@@ -61,3 +66,4 @@ services:
 
 volumes:
   oo-data:
+  obsroman-data:

@@ -4,6 +4,23 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [v1.3.0] - 2026-09-07 15:52
+
+### 新增
+- **API Key 管理页**（前端 `/keys`）：创建不同 AK/SK 接入 Key，区分不同应用服务；支持启停 / 删除；
+  列表与更新不返回 Secret，仅创建时一次性展示 `ak`/`sk`
+- **AK/SK 鉴权**：`Authorization: Bearer <ak>:<sk>`；不含冒号仍按旧单 key 兼容（现有 SDK/curl 无需改动）
+- **统一管理员权限**：所有 Key 权限一致（可读可写、可管理），不再细分
+- **内置管理员默认 Key**：系统启动始终内置 `admin:admin`（可用环境变量覆盖），前端顶栏无需再填 Key
+- API Key **文件持久化**（`TRACE_LOG_DATA_FILE`，默认 `./data/api-keys.json`），鉴权不依赖 OpenObserve
+- 日志写入时按鉴权 Key 自动打 **`api_key_ak`** 字段，搜索与 Dashboard 新增「接入应用」筛选/过滤
+
+### 变更
+- Dashboard 去掉 24 小时时间范围限制（不再报 1302）
+- Dashboard 默认时间范围改为最近 7 天，快捷区间增加「7 天」
+- 前端移除顶栏 API Key 输入框（统一使用内置默认 Key）
+- 日志搜索页默认时间范围与 Dashboard 一致（最近 7 天），默认收起筛选；改为左右两栏布局（筛选左 / 结果右，占满页面）
+
 ## [v1.2.6] - 2026-09-07 14:07
 
 ### 修复

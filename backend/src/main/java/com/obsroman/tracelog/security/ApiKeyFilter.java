@@ -56,12 +56,7 @@ public class ApiKeyFilter extends OncePerRequestFilter {
             return;
         }
 
-        String required = requiredPermission(request);
-        if (required != null && !apiKey.hasPermission(required)) {
-            writeError(response, ErrorCode.FORBIDDEN);
-            return;
-        }
-
+        // 统一管理员权限：任意有效 Key 均可访问全部业务接口，不再细分权限
         request.setAttribute(ATTR_API_KEY, apiKey);
         chain.doFilter(request, response);
     }
@@ -71,30 +66,16 @@ public class ApiKeyFilter extends OncePerRequestFilter {
         if (header == null || !header.regionMatches(true, 0, "Bearer ", 0, 7)) {
             return null;
         }
-        String key = header.substring(7).trim();
-        return registry.findByKey(key);
-    }
-
-    private String requiredPermission(HttpServletRequest request) {
-        String path = request.getRequestURI();
-        String method = request.getMethod();
-        if (path.startsWith("/api/v1/traces/")) {
-            return ApiKeyRegistry.PERM_TRACE_READ;
+        String credential = header.substring(7).trim();
+        if (credential.isEmpty()) {
+            return null;
         }
-        if (path.startsWith("/api/v1/dashboard/")) {
-            return ApiKeyRegistry.PERM_DASHBOARD_READ;
+        // AK/SK：Bearer <ak>:<sk>；无冒号视为旧式单 key（向后兼容）
+        int colon = credential.indexOf(':');
+        if (colon >= 0) {
+            return registry.find(credential.substring(0, colon).trim(), credential.substring(colon + 1).trim());
         }
-        if (path.equals("/api/v1/logs") || path.equals("/api/v1/logs/batch")) {
-            return "POST".equals(method) ? ApiKeyRegistry.PERM_LOG_WRITE : null;
-        }
-        if (path.equals("/api/v1/logs/search")) {
-            return ApiKeyRegistry.PERM_LOG_READ;
-        }
-        if (path.equals("/api/v1/logs/export")) {
-            return ApiKeyRegistry.PERM_LOG_EXPORT;
-        }
-        // 未知路径默认要求登录态（任意权限即通过），最终落到 404
-        return null;
+        return registry.findByLegacy(credential);
     }
 
     private void writeError(HttpServletResponse response, ErrorCode errorCode) throws IOException {

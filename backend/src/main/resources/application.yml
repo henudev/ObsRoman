@@ -28,16 +28,10 @@ trace-log:
   # 生产环境用环境变量注入：TRACE_LOG_SECURITY_API_KEYS_0_NAME / _KEY / _PERMISSIONS / _SERVICE / _ENVIRONMENT
   security:
     enabled: true
-    api-keys:
-      - name: admin
-        key: ${TRACE_LOG_ADMIN_KEY:}
-        permissions: [log:write, log:read, trace:read, dashboard:read, log:export]
-      - name: writer
-        key: ${TRACE_LOG_WRITER_KEY:}
-        permissions: [log:write]
-      - name: reader
-        key: ${TRACE_LOG_READER_KEY:}
-        permissions: [log:read, trace:read, dashboard:read, log:export]
+    data-file: ${TRACE_LOG_DATA_FILE:./data/api-keys.json}
+    # 内置管理员默认 Key（统一管理员权限，可读可写；前端顶栏无需再填 Key）
+    admin-ak: ${TRACE_LOG_ADMIN_KEY:admin}
+    admin-sk: ${TRACE_LOG_ADMIN_SECRET:admin}
 
   # 请求与查询限制
   limits:
@@ -48,8 +42,7 @@ trace-log:
     search-max-size: 500
     search-default-range-minutes: 15
     search-max-range-days: 7
-    dashboard-default-range-minutes: 60
-    dashboard-max-range-hours: 24
+    dashboard-default-range-minutes: 10080
     export-max-range-hours: 24
     export-page-size: 1000
     trace-max-logs: 5000

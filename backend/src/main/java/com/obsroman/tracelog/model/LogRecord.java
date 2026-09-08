@@ -77,6 +77,10 @@ public class LogRecord {
     @JsonProperty("instance")
     private String instance;
 
+    /** 写入日志所用 API Key 的 Access Key（服务端按鉴权身份赋值，客户端不可设置，用于按接入应用区分） */
+    @JsonProperty("api_key_ak")
+    private String apiKeyAk;
+
     @JsonProperty("attributes")
     private Map<String, Object> attributes;
 
@@ -239,6 +243,14 @@ public class LogRecord {
 
     public void setInstance(String instance) {
         this.instance = instance;
+    }
+
+    public String getApiKeyAk() {
+        return apiKeyAk;
+    }
+
+    public void setApiKeyAk(String apiKeyAk) {
+        this.apiKeyAk = apiKeyAk;
     }
 
     public Map<String, Object> getAttributes() {

@@ -62,6 +62,7 @@ public class LogQueryFactory {
         query.setTraceId(cleanSingle(request.getTraceId()));
         query.setRequestId(cleanSingle(request.getRequestId(), "request_id"));
         query.setUserId(cleanSingle(request.getUserId(), "user_id"));
+        query.setApiKeyAk(cleanSingle(request.getApiKeyAk(), "api_key_ak"));
         query.setKeyword(request.getKeyword());
 
         if (forExport) {

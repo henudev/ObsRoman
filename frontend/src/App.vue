@@ -1,12 +1,8 @@
 <script setup>
-// 顶栏布局：品牌 / 导航 / API Key / 版本徽标 / 更新日志弹窗
-import { computed, ref, watch } from 'vue'
-import { getApiKey, setApiKey } from './api'
+// 顶栏布局：品牌 / 导航 / 版本徽标 / 更新日志弹窗
+import { computed, ref } from 'vue'
 import changelogRaw from './docs/changelog.md?raw'
 import { marked } from 'marked'
-
-const keyInput = ref(getApiKey())
-watch(keyInput, (value) => setApiKey(value ?? ''))
 
 const showChangelog = ref(false)
 
@@ -27,9 +23,9 @@ const changelogHtml = computed(() => marked.parse(changelogRaw))
       <router-link to="/search">日志搜索</router-link>
       <router-link to="/docs">API 文档</router-link>
       <router-link to="/sdk">SDK 文档</router-link>
+      <router-link to="/keys">API Key 管理</router-link>
     </nav>
     <span class="spacer"></span>
-    <input class="key-input" v-model="keyInput" placeholder="API Key（Bearer）" title="Authorization: Bearer <api-key>" />
     <span class="version-badge">{{ currentVersion }}</span>
     <button class="changelog-btn" @click="showChangelog = true">更新日志</button>
   </header>

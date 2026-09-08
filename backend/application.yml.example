@@ -28,16 +28,14 @@ trace-log:
   #   TRACE_LOG_SECURITY_API_KEYS_0_ENVIRONMENT=prod           # 可选：写入 Key 绑定 environment
   security:
     enabled: true
-    api-keys:
-      - name: admin
-        key: ${TRACE_LOG_ADMIN_KEY:}
-        permissions: [log:write, log:read, trace:read, dashboard:read, log:export]
-      - name: writer
-        key: ${TRACE_LOG_WRITER_KEY:}
-        permissions: [log:write]
-      - name: reader
-        key: ${TRACE_LOG_READER_KEY:}
-        permissions: [log:read, trace:read, dashboard:read, log:export]
+    # 运行期 API Key 数据文件（管理页 CRUD 持久化；鉴权不依赖 OpenObserve）
+    data-file: ${TRACE_LOG_DATA_FILE:./data/api-keys.json}
+    # 内置管理员默认 Key（统一管理员权限，可读可写；前端顶栏无需再填 Key）
+    # 生产环境务必用环境变量覆盖默认 Secret：
+    #   TRACE_LOG_ADMIN_KEY=admin
+    #   TRACE_LOG_ADMIN_SECRET=<强口令>
+    admin-ak: ${TRACE_LOG_ADMIN_KEY:admin}
+    admin-sk: ${TRACE_LOG_ADMIN_SECRET:admin}
 
   limits:
     max-log-bytes: 65536            # 单条日志 64 KB
@@ -47,8 +45,7 @@ trace-log:
     search-max-size: 500
     search-default-range-minutes: 15
     search-max-range-days: 7
-    dashboard-default-range-minutes: 60
-    dashboard-max-range-hours: 24
+    dashboard-default-range-minutes: 10080
     export-max-range-hours: 24
     export-page-size: 1000
     trace-max-logs: 5000

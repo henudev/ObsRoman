@@ -8,37 +8,21 @@ import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
-import java.util.List;
-import java.util.Set;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ApiKeyFilterTest {
 
     private ApiKeyFilter filter;
     private final ObjectMapper mapper = new ObjectMapper();
+    private ApiKeyRegistry registry;
 
     @BeforeEach
     void setUp() {
         TraceLogProperties properties = new TraceLogProperties();
-        TraceLogProperties.ApiKeyConfig writer = new TraceLogProperties.ApiKeyConfig();
-        writer.setName("writer");
-        writer.setKey("writer-key");
-        writer.setPermissions(List.of("log:write"));
-        writer.setService("order-service");
-
-        TraceLogProperties.ApiKeyConfig reader = new TraceLogProperties.ApiKeyConfig();
-        reader.setName("reader");
-        reader.setKey("reader-key");
-        reader.setPermissions(List.of("log:read", "trace:read", "dashboard:read"));
-
-        TraceLogProperties.ApiKeyConfig blank = new TraceLogProperties.ApiKeyConfig();
-        blank.setName("blank");
-        blank.setKey("");
-        blank.setPermissions(List.of("log:write"));
-
-        properties.getSecurity().getApiKeys().addAll(List.of(writer, reader, blank));
-        ApiKeyRegistry registry = new ApiKeyRegistry(properties);
+        // 测试用唯一临时数据文件，避免污染仓库 ./data/ 与跨用例污染
+        properties.getSecurity().setDataFile(System.getProperty("java.io.tmpdir")
+                + "/obsroman-keys-" + System.nanoTime() + ".json");
+        registry = new ApiKeyRegistry(properties, mapper);
         filter = new ApiKeyFilter(registry, mapper);
     }
 
@@ -62,27 +46,34 @@ class ApiKeyFilterTest {
         assertThat(run("POST", "/api/v1/logs", null).status()).isEqualTo(401);
         assertThat(run("POST", "/api/v1/logs", "Token abc").status()).isEqualTo(401);
         assertThat(run("POST", "/api/v1/logs", "Bearer unknown").status()).isEqualTo(401);
+        assertThat(run("POST", "/api/v1/logs", "Bearer unknown:sk").status()).isEqualTo(401);
     }
 
     @Test
-    void wrongPermissionIs403() throws Exception {
-        assertThat(run("POST", "/api/v1/logs", "Bearer reader-key").status()).isEqualTo(403);
-        assertThat(run("POST", "/api/v1/logs/search", "Bearer writer-key").status()).isEqualTo(403);
-        assertThat(run("POST", "/api/v1/logs/export", "Bearer reader-key").status()).isEqualTo(403);
-        assertThat(run("GET", "/api/v1/traces/abc", "Bearer writer-key").status()).isEqualTo(403);
-        assertThat(run("POST", "/api/v1/dashboard/overview", "Bearer writer-key").status()).isEqualTo(403);
-    }
-
-    @Test
-    void correctPermissionPassesAndExposesApiKey() throws Exception {
-        Result result = run("POST", "/api/v1/logs", "Bearer writer-key");
+    void builtInAdminKeyPasses() throws Exception {
+        Result result = run("POST", "/api/v1/logs", "Bearer admin:admin");
         assertThat(result.status()).isEqualTo(200);
         assertThat(result.attr()).isInstanceOf(ApiKey.class);
-        assertThat(((ApiKey) result.attr()).boundService()).isEqualTo("order-service");
+        assertThat(((ApiKey) result.attr()).ak()).isEqualTo("admin");
+    }
 
-        assertThat(run("POST", "/api/v1/logs/search", "Bearer reader-key").status()).isEqualTo(200);
-        assertThat(run("GET", "/api/v1/traces/abc", "Bearer reader-key").status()).isEqualTo(200);
-        assertThat(run("POST", "/api/v1/dashboard/log-trend", "Bearer reader-key").status()).isEqualTo(200);
+    @Test
+    void anyValidKeyPassesAllEndpoints() throws Exception {
+        ApiKey key = registry.create("svc", null, null);
+        String bearer = "Bearer " + key.ak() + ":" + key.sk();
+        // 统一管理员权限：任意有效 Key 均可访问全部业务接口
+        assertThat(run("POST", "/api/v1/logs", bearer).status()).isEqualTo(200);
+        assertThat(run("POST", "/api/v1/logs/search", bearer).status()).isEqualTo(200);
+        assertThat(run("GET", "/api/v1/traces/abc", bearer).status()).isEqualTo(200);
+        assertThat(run("POST", "/api/v1/dashboard/overview", bearer).status()).isEqualTo(200);
+        assertThat(run("POST", "/api/v1/logs/export", bearer).status()).isEqualTo(200);
+        assertThat(run("GET", "/api/v1/api-keys", bearer).status()).isEqualTo(200);
+    }
+
+    @Test
+    void wrongSecretIs401() throws Exception {
+        ApiKey key = registry.create("svc", null, null);
+        assertThat(run("POST", "/api/v1/logs", "Bearer " + key.ak() + ":wrong").status()).isEqualTo(401);
     }
 
     @Test
@@ -100,7 +91,7 @@ class ApiKeyFilterTest {
     void disabledSecurityPassesEverything() throws Exception {
         TraceLogProperties properties = new TraceLogProperties();
         properties.getSecurity().setEnabled(false);
-        ApiKeyFilter disabled = new ApiKeyFilter(new ApiKeyRegistry(properties), mapper);
+        ApiKeyFilter disabled = new ApiKeyFilter(new ApiKeyRegistry(properties, mapper), mapper);
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/logs");
         MockHttpServletResponse response = new MockHttpServletResponse();
         disabled.doFilter(request, response, new MockFilterChain());

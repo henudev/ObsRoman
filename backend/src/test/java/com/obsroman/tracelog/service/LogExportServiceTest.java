@@ -60,7 +60,7 @@ class LogExportServiceTest {
         String csv = out.toString(StandardCharsets.UTF_8);
 
         assertThat(csv).startsWith("﻿timestamp,trace_id,span_id,request_id,service,environment,"
-                + "level,type,event,message,user_id,method,path,status_code,duration_ms,host,instance,attributes\n");
+                + "level,type,event,message,user_id,method,path,status_code,duration_ms,host,instance,api_key_ak,attributes\n");
         // 消息包含逗号与引号 → 整体加引号且内部引号成对
         assertThat(csv).contains("\"timeout, \"\"waiting\"\" long\"");
         // attributes 转 JSON 字符串

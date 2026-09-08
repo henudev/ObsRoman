@@ -1,6 +1,6 @@
 # ObsRoman · Trace Log Service
 
-基于 **OpenObserve** 的通用链路日志服务（当前版本 **v1.2.6**，更新记录见 [docs/CHANGELOG.md](docs/CHANGELOG.md)，前端右上角「更新日志」同步展示）。业务系统与前端一律通过本服务读写日志，**禁止直接调用 OpenObserve API**。
+基于 **OpenObserve** 的通用链路日志服务（当前版本 **v1.3.0**，更新记录见 [docs/CHANGELOG.md](docs/CHANGELOG.md)，前端右上角「更新日志」同步展示）。业务系统与前端一律通过本服务读写日志，**禁止直接调用 OpenObserve API**。
 
 ```
 业务系统 / 前端
@@ -27,7 +27,7 @@ Dashboard（Vue 3 + ECharts）/ 日志导出（流式 CSV / JSONL）
 | 日志搜索 | 时间范围 / service / environment / level / type / trace_id / request_id / user_id / 关键词，最多回看 7 天 |
 | Dashboard | Overview 单页：总量 / ERROR / 错误率 / Trace 数 / 活跃服务 / 耗时 P95·P99 + 日志趋势、等级分布、服务 Top、最近 ERROR |
 | 日志导出 | 复用搜索条件的流式导出 CSV / JSONL（时间范围 ≤24 小时，数量不设上限） |
-| 基础鉴权 | `Authorization: Bearer <api-key>`，权限：`log:write` `log:read` `trace:read` `dashboard:read` `log:export` |
+| AK/SK 鉴权 | `Authorization: Bearer <ak>:<sk>`（兼容旧单 key）；**统一管理员权限**（所有 Key 可读可写，不再细分）；系统内置默认管理员 Key（`admin:admin`，可用环境变量覆盖）；管理页 `/keys` 可创建/启停/删除 Key，日志自动打 `api_key_ak` 以便按接入应用区分 |
 | 可观测自身 | `GET /health`（含版本号）、`GET /ready`（OpenObserve 故障 → `DEGRADED`，服务不崩溃） |
 | 时区约定 | 全站统一北京时区（Asia/Shanghai）：前端选择器与展示、服务端容器 TZ 均为 +08:00 |
 | 页内文档 | 前端「API 文档」页面直接渲染 `docs/API.md`；导出接口返回 `X-Export-Rows` 便于前端提示 |
@@ -49,14 +49,14 @@ docker compose up -d --build
 | Trace Log Service API | http://localhost:8080 |
 | OpenObserve UI | http://localhost:5080 |
 
-默认开发 Key（生产环境必须通过环境变量覆盖）：`dev-admin-key`（全部权限）、`dev-writer-key`（写入）、`dev-reader-key`（读取+导出）。
+默认内置管理员 Key（统一管理员权限，生产环境必须通过环境变量覆盖 Secret）：`admin` / `admin`（即 `Authorization: Bearer admin:admin`）。前端顶栏无需再填 Key，统一使用该内置默认 Key。
 
 > 仓库内不保存任何真实密码/Token：OpenObserve 凭据与 API Key 全部经环境变量注入（见 `backend/application.yml.example` 与 `docker-compose.yml`）。
 
 ### 一分钟验证闭环
 
 ```bash
-KEY=dev-writer-key
+KEY=admin:admin
 
 # 1. 写入单条日志
 curl -s -X POST http://localhost:8080/api/v1/logs \
@@ -80,24 +80,24 @@ curl -s -X POST http://localhost:8080/api/v1/logs/batch \
 # 3. 关键词搜索（等 1~2 秒让异步写入落库）
 sleep 3
 curl -s -X POST http://localhost:8080/api/v1/logs/search \
-  -H "Authorization: Bearer dev-reader-key" -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer admin:admin" -H 'Content-Type: application/json' \
   -d '{"keyword":"创建订单","size":10}'
 
 # 4. Trace 完整链路（timestamp 升序）
 curl -s http://localhost:8080/api/v1/traces/4bf92f3577b34da6a3ce929d0e0e4736 \
-  -H "Authorization: Bearer dev-reader-key"
+  -H "Authorization: Bearer admin:admin"
 
 # 5. Dashboard 聚合
 curl -s -X POST http://localhost:8080/api/v1/dashboard/overview \
-  -H "Authorization: Bearer dev-reader-key" -H 'Content-Type: application/json' -d '{}'
+  -H "Authorization: Bearer admin:admin" -H 'Content-Type: application/json' -d '{}'
 
 # 6. 流式导出 CSV / JSONL
 curl -s -X POST http://localhost:8080/api/v1/logs/export \
-  -H "Authorization: Bearer dev-reader-key" -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer admin:admin" -H 'Content-Type: application/json' \
   -d '{"level":["ERROR"],"format":"csv"}' -o logs.csv
 
 curl -s -X POST http://localhost:8080/api/v1/logs/export \
-  -H "Authorization: Bearer dev-reader-key" -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer admin:admin" -H 'Content-Type: application/json' \
   -d '{"level":["ERROR"],"format":"jsonl"}' -o logs.jsonl
 
 # 7. 系统状态（OpenObserve 故障时 status=DEGRADED）
@@ -120,7 +120,7 @@ cd backend
 OPENOBSERVE_URL=http://localhost:5080 \
 OPENOBSERVE_USERNAME=root@example.com \
 OPENOBSERVE_PASSWORD='Complexpass#123' \
-TRACE_LOG_ADMIN_KEY=dev-admin-key TRACE_LOG_WRITER_KEY=dev-writer-key TRACE_LOG_READER_KEY=dev-reader-key \
+TRACE_LOG_ADMIN_KEY=admin TRACE_LOG_ADMIN_SECRET=admin \
 ./mvnw spring-boot:run
 
 # 3. 启动前端（Vite，代理 /api → localhost:8080）
@@ -202,7 +202,7 @@ docs/OPENOBSERVE.md               # OpenObserve 配置说明
 - `202 Accepted` 仅表示日志已进入本服务（队列），不保证已持久化；持久化失败按 DROP 计数，**日志故障不影响业务系统**。
 - Search / Export 复用同一 `LogQuery`；导出为流式（查一批写一批），不整表进内存。
 - 禁止前端传 SQL；查询条件由服务端构建为受控 SQL（值全部转义，关键词剔除引号）。
-- Dashboard / Export 均有查询超时与最大时间范围（24 小时）限制。
+- Export 有查询超时与最大时间范围（24 小时）限制；Dashboard 默认最近 7 天，无最大时间范围限制。
 - OpenObserve 只是 Storage 实现：更换存储只需新增 `LogStorage` 实现。
 
 ## API

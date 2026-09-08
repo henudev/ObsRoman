@@ -49,6 +49,7 @@ public class LogIngestionService {
     public void ingestSingle(JsonNode body, ApiKey apiKey) {
         LogRecord record = parseSafe(body);
         checkBinding(record, apiKey);
+        applyKey(record, apiKey);
         submit(record);
     }
 
@@ -75,6 +76,7 @@ public class LogIngestionService {
             try {
                 LogRecord record = LogRecordParser.parse(logs.get(i), receiveTime, mapper, maxLogBytes);
                 checkBinding(record, apiKey);
+                applyKey(record, apiKey);
                 submit(record);
                 accepted++;
             } catch (LogValidationException e) {
@@ -86,6 +88,13 @@ public class LogIngestionService {
 
     private LogRecord parseSafe(JsonNode body) {
         return LogRecordParser.parse(body, OffsetDateTime.now(), mapper, maxLogBytes);
+    }
+
+    /** 用鉴权 Key 身份给日志打标 api_key_ak（按接入应用区分，客户端不可伪造） */
+    private void applyKey(LogRecord record, ApiKey apiKey) {
+        if (apiKey != null && apiKey.ak() != null) {
+            record.setApiKeyAk(apiKey.ak());
+        }
     }
 
     /** 写入 Key 绑定的 service / environment 校验 */

@@ -39,6 +39,9 @@ public class LogSearchRequest {
     @JsonProperty("user_id")
     private String userId;
 
+    @JsonProperty("api_key_ak")
+    private String apiKeyAk;
+
     @JsonProperty("keyword")
     private String keyword;
 
@@ -118,6 +121,14 @@ public class LogSearchRequest {
 
     public void setUserId(String userId) {
         this.userId = userId;
+    }
+
+    public String getApiKeyAk() {
+        return apiKeyAk;
+    }
+
+    public void setApiKeyAk(String apiKeyAk) {
+        this.apiKeyAk = apiKeyAk;
     }
 
     public String getKeyword() {
