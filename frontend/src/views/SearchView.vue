@@ -40,7 +40,7 @@ const form = reactive({
   size: 50
 })
 
-const showAdvanced = ref(false)
+const showAdvanced = ref(true)
 const activeQuick = ref(10080)
 
 const result = ref(null)
