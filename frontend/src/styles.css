@@ -107,7 +107,8 @@ body {
 .changelog-btn:hover { background: rgba(255, 255, 255, 0.12); }
 
 /* ===== 主体 ===== */
-.main { flex: 1; padding: 20px 24px 32px; max-width: 1440px; width: 100%; margin: 0 auto; }
+/* 占满视口宽度，不设 max-width，避免大屏两侧留白 */
+.main { flex: 1; padding: 20px 24px 32px; width: 100%; }
 
 .page-title { font-size: 18px; font-weight: 600; margin: 0 0 16px; color: var(--text-strong); }
 
@@ -502,8 +503,8 @@ thead tr:first-child th:last-child { border-radius: 0 8px 0 0; }
 
 td.wrap { word-break: break-all; }
 
-/* 数据表：固定布局 + 单行省略，保证每行高度一致 */
-.data-table { table-layout: fixed; }
+/* 数据表：固定布局 + 单行省略，保证每行高度一致；宽度占满容器 */
+.data-table { table-layout: fixed; width: 100%; }
 
 .data-table th,
 .data-table td {
